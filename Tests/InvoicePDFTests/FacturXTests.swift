@@ -188,7 +188,8 @@ final class FacturXTests: XCTestCase {
         ]
 
         for (treatment, code) in expected {
-            let xml = try text(try invoice(vat: treatment).facturX(details(tax: 0, rate: 0)))
+            let xml = try text(try invoice(vat: treatment)
+                .facturX(details(tax: 0, gross: 749, rate: 0)))
             XCTAssertTrue(xml.contains("<ram:CategoryCode>\(code)</ram:CategoryCode>"),
                           treatment.rawValue)
         }
@@ -196,7 +197,8 @@ final class FacturXTests: XCTestCase {
 
     func testZeroTaxCarriesItsReason() throws {
         // A system that sees "0" with no reason files it as a mistake.
-        let xml = try text(try invoice(vat: .reverseCharge).facturX(details(tax: 0, rate: 0)))
+        let xml = try text(try invoice(vat: .reverseCharge)
+            .facturX(details(tax: 0, gross: 749, rate: 0)))
         XCTAssertTrue(xml.contains("<ram:ExemptionReason>Reverse charge</ram:ExemptionReason>"), xml)
     }
 
@@ -292,5 +294,59 @@ final class FacturXTests: XCTestCase {
         XCTAssertThrowsError(
             try invoice(supplierVAT: "").facturXDocument(details(), in: try family())
         )
+    }
+}
+
+// MARK: - Figures that do not agree
+
+extension FacturXTests {
+
+    func testATotalThatDoesNotAddUpIsCaught() throws {
+        // The most embarrassing thing an invoice can carry, and the one a
+        // customer notices first.
+        let wrong = FacturX.Totals(net: 749, tax: 149.80, gross: 890)
+        let found = wrong.disagreements(currency: "GBP")
+
+        XCTAssertEqual(found.count, 1)
+        XCTAssertTrue(try XCTUnwrap(found.first).contains("898.80"), found.joined())
+        XCTAssertTrue(try XCTUnwrap(found.first).contains("890.00"), found.joined())
+    }
+
+    func testFiguresThatAgreeSayNothing() {
+        XCTAssertEqual(FacturX.Totals(net: 749, tax: 149.80, gross: 898.80).disagreements(), [])
+    }
+
+    func testAPennyOfRoundingIsAllowed() {
+        // A rate applied per line lands there legitimately.
+        XCTAssertEqual(FacturX.Totals(net: 100, tax: 19.99, gross: 120).disagreements(), [])
+        XCTAssertFalse(FacturX.Totals(net: 100, tax: 19, gross: 120).disagreements().isEmpty)
+    }
+
+    func testPayingMoreThanTheInvoiceIsForIsCaught() {
+        let found = FacturX.Totals(net: 100, tax: 20, gross: 120, due: 200).disagreements()
+        XCTAssertTrue(found.contains { $0.contains("More is payable") }, found.joined())
+    }
+
+    func testANegativeAmountIsCaught() {
+        // A refund is a credit note, not a minus sign.
+        let found = FacturX.Totals(net: -100, tax: -20, gross: -120).disagreements()
+        XCTAssertTrue(found.contains { $0.contains("negative") }, found.joined())
+    }
+
+    func testPayingLessIsFine() {
+        // A part payment against an open invoice.
+        XCTAssertEqual(FacturX.Totals(net: 100, tax: 20, gross: 120, due: 60).disagreements(), [])
+    }
+
+    func testTheXMLRefusesFiguresThatDisagree() throws {
+        XCTAssertThrowsError(
+            try invoice().facturX(details(net: 749, tax: 149.80, gross: 890))
+        ) { error in
+            XCTAssertTrue("\(error)".contains("does not add up"), "\(error)")
+        }
+    }
+
+    func testTheXMLIsHappyWhenTheyAgree() throws {
+        XCTAssertNoThrow(try invoice().facturX(details()))
     }
 }

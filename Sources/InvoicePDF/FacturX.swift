@@ -72,6 +72,52 @@ public struct FacturX: Sendable, Equatable {
             self.gross = gross
             self.due = due ?? gross
         }
+
+        /// Where these figures do not agree with each other.
+        ///
+        /// A total that does not add up is the most embarrassing thing an
+        /// invoice can carry, and the one a customer notices first. It is
+        /// also the only arithmetic that can be checked here: every amount
+        /// printed on the page is a string, deliberately, because formatting
+        /// money means knowing a currency's conventions — but these four
+        /// numbers were given as numbers, and net plus tax is gross wherever
+        /// you are.
+        public func disagreements(currency: String = "") -> [String] {
+            var found: [String] = []
+
+            func show(_ value: Decimal) -> String {
+                let formatter = NumberFormatter()
+                formatter.locale = Locale(identifier: "en_US_POSIX")
+                formatter.numberStyle = .decimal
+                formatter.minimumFractionDigits = 2
+                formatter.maximumFractionDigits = 2
+                let figure = formatter.string(from: value as NSDecimalNumber) ?? "\(value)"
+                return currency.isEmpty ? figure : "\(currency) \(figure)"
+            }
+
+            // A penny either way is rounding, and a rate applied per line
+            // legitimately lands there. More than that is a mistake.
+            let tolerance = Decimal(0.011)
+            let sum = net + tax
+            if abs(sum - gross) > tolerance {
+                found.append(
+                    "The total does not add up: \(show(net)) plus \(show(tax)) is \(show(sum)), "
+                        + "and the gross says \(show(gross))."
+                )
+            }
+
+            if due > gross + tolerance {
+                found.append(
+                    "More is payable than the invoice is for: \(show(due)) against \(show(gross))."
+                )
+            }
+
+            if net < 0 || tax < 0 || gross < 0 {
+                found.append("An amount is negative. A refund is a credit note, not a minus sign.")
+            }
+
+            return found
+        }
     }
 
     public var profile: Profile
@@ -167,6 +213,10 @@ extension Invoice {
         if vat == .reverseCharge, to.taxID.trimmingCharacters(in: .whitespaces).isEmpty {
             missing.append("Reverse charge needs the customer's VAT number.")
         }
+        // A document whose own totals disagree is one a buyer's system
+        // rejects — and the rejection arrives days later, against your name.
+        missing += details.totals.disagreements(currency: details.currency)
+
         guard missing.isEmpty else { throw FacturXError.missing(missing) }
 
         return Data(FacturXWriter.xml(self, details: details, typeCode: typeCode).utf8)

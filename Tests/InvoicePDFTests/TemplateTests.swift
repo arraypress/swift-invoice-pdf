@@ -439,3 +439,97 @@ extension TemplateTests {
                        "the notice is \(above) above and \(below) below its own rule")
     }
 }
+
+// MARK: - The wording, in the language that reads it
+
+extension TemplateTests {
+
+    private func noticed(_ treatment: VatTreatment,
+                         in language: VatTreatment.Wording?) -> Invoice {
+        Invoice(
+            branding: Branding(name: "SwiftInvoices Ltd"), number: "INV-1",
+            from: Party(name: "S", address: ["1 Road"], taxID: "GB1"),
+            to: Party(name: "B", address: ["2 Road"], taxID: "DE1"),
+            items: [LineItem(description: "Thing", amount: "€1,00")],
+            totals: [("Subtotal", "€1,00")],
+            vat: treatment, supplyDate: "1 August 2026", wording: language
+        )
+    }
+
+    func testTheEnglishIsAlwaysThere() throws {
+        for language in VatTreatment.Wording.allCases {
+            let text = try XCTUnwrap(
+                PDFDocument(data: noticed(.reverseCharge, in: language).render().render())?.string
+            )
+            XCTAssertTrue(text.contains("Reverse charge"), language.rawValue)
+        }
+    }
+
+    func testEachLanguageSaysItInItsOwnLaw() throws {
+        let expected: [VatTreatment.Wording: String] = [
+            .german: "Steuerschuldnerschaft",
+            .french: "Autoliquidation",
+            .italian: "Inversione contabile",
+            .spanish: "Inversión del sujeto pasivo",
+            .dutch: "Btw verlegd",
+        ]
+
+        for (language, phrase) in expected {
+            let text = try XCTUnwrap(
+                PDFDocument(data: noticed(.reverseCharge, in: language).render().render())?.string
+            )
+            XCTAssertTrue(text.contains(phrase), "\(language.rawValue) did not say \(phrase)")
+        }
+    }
+
+    func testEachLanguageCitesItsOwnStatute() throws {
+        // A citation to a directive is right everywhere and persuades nobody:
+        // an authority checking this expects the article of its own code.
+        let citations: [VatTreatment.Wording: String] = [
+            .german: "§ 13b UStG", .french: "283-2 du CGI",
+            .italian: "DPR 633/72", .spanish: "Ley 37/1992", .dutch: "Wet OB",
+        ]
+
+        for (language, citation) in citations {
+            let notes = VatTreatment.reverseCharge.notes(also: language).joined(separator: " ")
+            XCTAssertTrue(notes.contains(citation), "\(language.rawValue): \(notes)")
+        }
+    }
+
+    func testEveryTreatmentHasWordingInEveryLanguage() throws {
+        // Except standard, which needs none — VAT charged at the domestic
+        // rate is the thing that requires no explanation.
+        for language in VatTreatment.Wording.allCases {
+            for treatment in VatTreatment.allCases where treatment != .standard {
+                XCTAssertFalse(
+                    language.notes(for: treatment).isEmpty,
+                    "\(language.rawValue) has nothing for \(treatment.rawValue)"
+                )
+            }
+            XCTAssertTrue(language.notes(for: .standard).isEmpty)
+        }
+    }
+
+    func testTheOldGermanFlagStillWorks() throws {
+        let invoice = Invoice(
+            branding: Branding(name: "x"), number: "INV-1",
+            from: Party(name: "S", address: ["1"], taxID: "GB1"),
+            to: Party(name: "B", address: ["2"], taxID: "DE1"),
+            items: [], totals: [("Subtotal", "€1,00")],
+            vat: .reverseCharge, supplyDate: "1 Aug 2026", germanNotes: true
+        )
+
+        XCTAssertTrue(invoice.germanNotes)
+        let text = try XCTUnwrap(PDFDocument(data: invoice.render().render())?.string)
+        XCTAssertTrue(text.contains("Steuerschuldnerschaft"))
+    }
+
+    func testNoLanguageMeansEnglishAlone() throws {
+        let text = try XCTUnwrap(
+            PDFDocument(data: noticed(.reverseCharge, in: nil).render().render())?.string
+        )
+        XCTAssertTrue(text.contains("Reverse charge"))
+        XCTAssertFalse(text.contains("Autoliquidation"))
+        XCTAssertFalse(text.contains("Steuerschuldnerschaft"))
+    }
+}

@@ -39,6 +39,12 @@ Where VAT is not charged at the domestic rate, the wording *is* the document —
 
 Drawn as vector squares rather than embedded as a picture, so the code survives printing and photocopying.
 
+## The wording, per language
+
+The same reverse-charge invoice, each carrying the phrase and the citation its own authority expects:
+
+[german](wording/reverse-charge-german.pdf) · [french](wording/reverse-charge-french.pdf) · [italian](wording/reverse-charge-italian.pdf) · [spanish](wording/reverse-charge-spanish.pdf) · [dutch](wording/reverse-charge-dutch.pdf)
+
 ## Statements and schedules
 
 - [statement](statements/statement.pdf) — running balance with ageing

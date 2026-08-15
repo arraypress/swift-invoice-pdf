@@ -25,7 +25,7 @@ A credit note that does not reference the invoice it reverses, or a self-billed 
 
 - 🧾 **Twelve invoice kinds** — invoice, credit note, debit note, quote, proforma, receipt, reminder, remittance advice, self-billed invoice, delivery note, purchase order, order confirmation
 - 📚 **Six document types** — invoice, statement of account, timesheet, royalty statement, aged debtors or creditors, and the pair that cross a border
-- 🇪🇺 **VAT-aware** — reverse charge, intra-community supply, export and small-business wording, in English and German
+- 🇪🇺 **VAT-aware** — reverse charge, intra-community supply, export and small-business wording, in English plus German, French, Italian, Spanish or Dutch — each citing its own statute
 - ✅ **Compliance checks** — the §14 UStG / Article 226 particulars, verified against the drawn page rather than the model
 - ✒️ **Your own typeface** — set the documents in a brand family, with a reported fallback for anything it cannot draw
 - 🖼️ **Vector logos** — an SVG `path`, sharp at any zoom
@@ -51,6 +51,34 @@ Invoice(…, paymentCode: code)
 `epc` builds what a European banking app expects and enforces the rules that bite — euro only, the name capped at 70 characters, the reference at 140 — returning `nil` rather than a code that shows an error instead of a payment. Anything else is a payload you supply: a payment page, a card processor's URL, a Swiss QR-bill string.
 
 The code is drawn beside the payment wording, and the wording is set to a narrower measure so the two never collide. [Examples](Examples/invoices/qr-sepa.pdf).
+
+## The wording, in the language that reads it
+
+```swift
+Invoice(…, vat: .reverseCharge, wording: .french)
+```
+
+```
+Reverse charge: VAT to be accounted for by the recipient.
+Article 196, Council Directive 2006/112/EC.
+Autoliquidation — TVA due par le preneur.
+Article 283-2 du CGI ; article 196 de la directive 2006/112/CE.
+```
+
+English always, and a second language beside it — the person reading the invoice and the authority checking it are often not the same person. Each language cites its own statute rather than only the directive: an inspector expects the article of their own code, and `§ 13b UStG`, `article 283-2 du CGI` and `articolo 17 del DPR 633/72` are what the phrase means locally.
+
+**Not legal advice, and worth a professional's eye before you rely on it.** These are the standard formulations, which are published and formulaic — but a wrong phrase in a language you do not read is worse than an English one you do. [One example per language](Examples/wording).
+
+## Totals that add up
+
+The figures given for an e-invoice are checked against each other before anything is written:
+
+```
+This cannot be sent as an e-invoice: The total does not add up:
+GBP 749.00 plus GBP 149.80 is GBP 898.80, and the gross says GBP 890.00.
+```
+
+It is the only arithmetic that can be checked here — every amount printed on the page is a string, deliberately — but those four numbers arrived as numbers, and net plus tax is gross wherever you are. A penny either way is rounding; more is a mistake, and a total that does not add up is the first thing a customer notices.
 
 ## E-invoicing
 

@@ -138,8 +138,102 @@ public enum VatTreatment: String, Sendable, CaseIterable, Codable {
     case exempt
 
     /// The wording that must appear on the document.
-    public func notes(german: Bool = false) -> [String] {
+    /// The language a document adds beside its English wording.
+    ///
+    /// The wording is not decoration: where VAT is not charged at the
+    /// domestic rate, the phrase and its citation are what make the document
+    /// evidence for the recipient's deduction. A tax authority reading it
+    /// expects the words its own law uses.
+    ///
+    /// **Not legal advice, and worth a professional's eye before you rely on
+    /// it.** These are the standard formulations and the articles they cite,
+    /// which are published and formulaic — but a wrong phrase in a language
+    /// you do not read is worse than an English one you do.
+    public enum Wording: String, Sendable, CaseIterable {
+
+        case german, french, italian, spanish, dutch
+
+        /// What a document in this language calls the reverse charge and the
+        /// rest, with the citation its own law uses.
+        func notes(for treatment: VatTreatment) -> [String] {
+            switch (self, treatment) {
+            case (.german, .reverseCharge):
+                return ["Steuerschuldnerschaft des Leistungsempfängers (§ 13b UStG)."]
+            case (.german, .intraCommunitySupply):
+                return ["Steuerfreie innergemeinschaftliche Lieferung (§ 4 Nr. 1b UStG)."]
+            case (.german, .export):
+                return ["Steuerfreie Ausfuhrlieferung (§ 4 Nr. 1a UStG)."]
+            case (.german, .smallBusiness):
+                return ["Gemäß § 19 UStG wird keine Umsatzsteuer berechnet."]
+            case (.german, .exempt):
+                return ["Steuerfrei."]
+
+            case (.french, .reverseCharge):
+                return ["Autoliquidation — TVA due par le preneur.",
+                        "Article 283-2 du CGI ; article 196 de la directive 2006/112/CE."]
+            case (.french, .intraCommunitySupply):
+                return ["Livraison intracommunautaire exonérée.",
+                        "Article 262 ter I du CGI ; article 138 de la directive 2006/112/CE."]
+            case (.french, .export):
+                return ["Exportation exonérée de TVA (article 262 I du CGI)."]
+            case (.french, .smallBusiness):
+                return ["TVA non applicable, article 293 B du CGI."]
+            case (.french, .exempt):
+                return ["Opération exonérée de TVA."]
+
+            case (.italian, .reverseCharge):
+                return ["Inversione contabile — IVA assolta dal committente.",
+                        "Articolo 17 del DPR 633/72 ; articolo 196 della direttiva 2006/112/CE."]
+            case (.italian, .intraCommunitySupply):
+                return ["Cessione intracomunitaria non imponibile.",
+                        "Articolo 41 del DL 331/93 ; articolo 138 della direttiva 2006/112/CE."]
+            case (.italian, .export):
+                return ["Operazione non imponibile (articolo 8 del DPR 633/72)."]
+            case (.italian, .smallBusiness):
+                return ["Operazione in regime forfettario, IVA non applicata."]
+            case (.italian, .exempt):
+                return ["Operazione esente IVA."]
+
+            case (.spanish, .reverseCharge):
+                return ["Inversión del sujeto pasivo — IVA a declarar por el destinatario.",
+                        "Artículo 84 de la Ley 37/1992 ; artículo 196 de la Directiva 2006/112/CE."]
+            case (.spanish, .intraCommunitySupply):
+                return ["Entrega intracomunitaria exenta.",
+                        "Artículo 25 de la Ley 37/1992 ; artículo 138 de la Directiva 2006/112/CE."]
+            case (.spanish, .export):
+                return ["Exportación exenta de IVA (artículo 21 de la Ley 37/1992)."]
+            case (.spanish, .smallBusiness):
+                return ["Operación sin IVA por régimen de franquicia."]
+            case (.spanish, .exempt):
+                return ["Operación exenta de IVA."]
+
+            case (.dutch, .reverseCharge):
+                return ["Btw verlegd — te voldoen door de afnemer.",
+                        "Artikel 12 lid 3 Wet OB ; artikel 196 richtlijn 2006/112/EG."]
+            case (.dutch, .intraCommunitySupply):
+                return ["Intracommunautaire levering, 0% btw.",
+                        "Tabel II post a6 Wet OB ; artikel 138 richtlijn 2006/112/EG."]
+            case (.dutch, .export):
+                return ["Uitvoer buiten de EU, 0% btw."]
+            case (.dutch, .smallBusiness):
+                return ["Geen btw in rekening gebracht — kleineondernemersregeling."]
+            case (.dutch, .exempt):
+                return ["Vrijgesteld van btw."]
+
+            case (_, .standard):
+                return []
+            }
+        }
+    }
+
+    /// The wording this treatment puts on the document.
+    ///
+    /// - Parameter also: A second language beside the English. The document
+    ///   carries both, because the person reading it and the authority
+    ///   checking it are often not the same person.
+    public func notes(also language: Wording? = nil) -> [String] {
         let english: [String]
+
         switch self {
         case .standard:
             return []
@@ -161,18 +255,14 @@ public enum VatTreatment: String, Sendable, CaseIterable, Codable {
             english = ["Exempt from VAT."]
         }
 
-        guard german else { return english }
+        guard let language else { return english }
+        return english + language.notes(for: self)
+    }
 
-        let germanNote: [String]
-        switch self {
-        case .reverseCharge: germanNote = ["Steuerschuldnerschaft des Leistungsempfängers (§ 13b UStG)."]
-        case .intraCommunitySupply: germanNote = ["Steuerfreie innergemeinschaftliche Lieferung (§ 4 Nr. 1b UStG)."]
-        case .export: germanNote = ["Steuerfreie Ausfuhrlieferung (§ 4 Nr. 1a UStG)."]
-        case .smallBusiness: germanNote = ["Gemäß § 19 UStG wird keine Umsatzsteuer berechnet."]
-        case .exempt: germanNote = ["Steuerfrei."]
-        case .standard: germanNote = []
-        }
-        return english + germanNote
+    /// The English wording, plus the German — as it was before other
+    /// languages existed.
+    public func notes(german: Bool) -> [String] {
+        notes(also: german ? .german : nil)
     }
 
     /// Whether both parties' VAT numbers must appear.

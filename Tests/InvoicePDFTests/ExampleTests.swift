@@ -302,6 +302,28 @@ final class ExampleTests: XCTestCase {
         }
     }
 
+    func testTheWordingInEachLanguage() throws {
+        // Where VAT is not charged at the domestic rate, the phrase and its
+        // citation are what make the document evidence for the recipient's
+        // deduction — and an authority checking it expects its own law.
+        for language in VatTreatment.Wording.allCases {
+            let invoice = Invoice(
+                branding: Self.branding,
+                number: "INV-2026-0045",
+                from: Self.supplier,
+                to: Self.germanCustomer,
+                items: Self.items,
+                totals: [("Subtotal", "£749.00")],
+                total: [("Total due", "£749.00")],
+                details: [("Issued", "31 July 2026"), ("Due", "30 August 2026")],
+                vat: .reverseCharge,
+                supplyDate: "31 July 2026",
+                wording: language
+            )
+            try put(invoice.render(), "wording/reverse-charge-\(language.rawValue).pdf")
+        }
+    }
+
     // MARK: Scan to pay
 
     func testAnInvoiceWithAPaymentCode() throws {

@@ -166,7 +166,14 @@ public struct Invoice: Sendable {
     public let reference: String
 
     /// Print the German wording as well as the English.
-    public let germanNotes: Bool
+    ///
+    /// Kept for the documents written before other languages existed;
+    /// ``wording`` is the general form.
+    public var germanNotes: Bool { wording == .german }
+
+    /// A second language beside the English, where the document is going
+    /// somewhere its authority reads its own law.
+    public let wording: VatTreatment.Wording?
 
     /// A code to scan, printed beside the payment wording.
     public let paymentCode: PaymentCode?
@@ -189,6 +196,7 @@ public struct Invoice: Sendable {
         supplyDate: String = "",
         reference: String = "",
         germanNotes: Bool = false,
+        wording: VatTreatment.Wording? = nil,
         paymentCode: PaymentCode? = nil
     ) {
         self.kind = kind
@@ -207,7 +215,7 @@ public struct Invoice: Sendable {
         self.vatLines = vatLines
         self.supplyDate = supplyDate
         self.reference = reference
-        self.germanNotes = germanNotes
+        self.wording = wording ?? (germanNotes ? .german : nil)
         self.paymentCode = paymentCode
     }
 
@@ -602,7 +610,7 @@ public struct Invoice: Sendable {
     /// The mandatory VAT wording, printed prominently rather than buried,
     /// because its absence is what invalidates the recipient's deduction.
     private func vatNotes(_ pdf: Document) {
-        let notes = vat.notes(german: germanNotes)
+        let notes = vat.notes(also: wording)
         guard !notes.isEmpty else { return }
 
         // The box is measured from its content rather than from a guess:
