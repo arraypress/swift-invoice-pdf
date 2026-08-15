@@ -30,7 +30,32 @@ A credit note that does not reference the invoice it reverses, or a self-billed 
 - ✒️ **Your own typeface** — set the documents in a brand family, with a reported fallback for anything it cannot draw
 - 🖼️ **Vector logos** — an SVG `path`, sharp at any zoom
 - 📄 **Multi-page** — headings repeat, footers know the total
+- 🇪🇺 **Factur-X / ZUGFeRD** — the invoice as XML inside a PDF/A-3, which is what an e-invoice is
 - 🪶 **One dependency** — the writer, which has none
+
+## E-invoicing
+
+Germany's mandate is phasing in, France's follows, Italy's has been running for years. All of them want the *structured* invoice, and Factur-X — ZUGFeRD in Germany, the same specification — says how: one PDF/A-3 carrying the invoice as XML. The page is what a person reads; the attachment is what the buyer's ledger reads.
+
+```swift
+let data = try invoice.facturXDocument(
+    FacturX(
+        currency: "GBP",
+        issued: issuedDate,
+        due: dueDate,
+        totals: .init(net: 749, tax: 149.80, gross: 898.80),
+        taxRate: 20,
+        buyerReference: "PO-4471"
+    ),
+    in: family
+)
+```
+
+One file, both halves, claiming PDF/A-3 and meeting it. There is [an example](Examples/e-invoice) with the XML beside it.
+
+**The figures are given rather than taken.** Every amount on an `Invoice` is a string, deliberately — formatting money means knowing a currency's separators, and that belongs where the money lives. The XML wants the opposite: a decimal a machine adds up. Reading `"£1.234,56"` back into a number means guessing whether that comma is a decimal point, and a guess wrong by a factor of a thousand on a tax return is not one worth making. So you pass the numbers you already had before formatting them.
+
+**It refuses rather than producing something a buyer's system will reject** — a delivery note has no invoice form, a missing supplier VAT number is fatal, reverse charge needs the customer's. The rejection would otherwise arrive days later, against your name.
 
 ## Installation
 

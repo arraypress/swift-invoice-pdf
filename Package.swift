@@ -13,7 +13,7 @@ let package = Package(
     ],
     dependencies: [
         // The writer. This package is the paperwork; that one is the page.
-        .package(url: "https://github.com/arraypress/swift-text-pdf.git", from: "2.0.0"),
+        .package(url: "https://github.com/arraypress/swift-text-pdf.git", from: "2.3.0"),
     ],
     targets: [
         .target(

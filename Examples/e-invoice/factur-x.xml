@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rsm:CrossIndustryInvoice
+  xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"
+  xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100"
+  xmlns:udt="urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100">
+  <rsm:ExchangedDocumentContext>
+    <ram:GuidelineSpecifiedDocumentContextParameter>
+      <ram:ID>urn:factur-x.eu:1p0:minimum</ram:ID>
+    </ram:GuidelineSpecifiedDocumentContextParameter>
+  </rsm:ExchangedDocumentContext>
+  <rsm:ExchangedDocument>
+    <ram:ID>INV-2026-0042</ram:ID>
+    <ram:TypeCode>380</ram:TypeCode>
+    <ram:IssueDateTime>
+      <udt:DateTimeString format="102">20260725</udt:DateTimeString>
+    </ram:IssueDateTime>
+  </rsm:ExchangedDocument>
+  <rsm:SupplyChainTradeTransaction>
+      <ram:ApplicableHeaderTradeAgreement>
+        <ram:BuyerReference>PO-4471</ram:BuyerReference>
+        <ram:SellerTradeParty>
+          <ram:Name>SwiftInvoices Ltd</ram:Name>
+          <ram:PostalTradeAddress>
+            <ram:LineOne>71–75 Shelton Street</ram:LineOne>
+            <ram:LineTwo>London WC2H 9JQ</ram:LineTwo>
+          </ram:PostalTradeAddress>
+          <ram:SpecifiedTaxRegistration>
+            <ram:ID schemeID="VA">GB 123 4567 89</ram:ID>
+          </ram:SpecifiedTaxRegistration>
+        </ram:SellerTradeParty>
+        <ram:BuyerTradeParty>
+          <ram:Name>Klangwerk GmbH</ram:Name>
+          <ram:PostalTradeAddress>
+            <ram:LineOne>Oranienburger Strasse 87</ram:LineOne>
+            <ram:LineTwo>10178 Berlin</ram:LineTwo>
+          </ram:PostalTradeAddress>
+          <ram:SpecifiedTaxRegistration>
+            <ram:ID schemeID="VA">DE 811 5678 90</ram:ID>
+          </ram:SpecifiedTaxRegistration>
+        </ram:BuyerTradeParty>
+            <ram:BuyerOrderReferencedDocument>
+          <ram:IssuerAssignedID>PO-4471</ram:IssuerAssignedID>
+        </ram:BuyerOrderReferencedDocument>
+      </ram:ApplicableHeaderTradeAgreement>
+    <ram:ApplicableHeaderTradeDelivery/>
+    <ram:ApplicableHeaderTradeSettlement>
+      <ram:InvoiceCurrencyCode>GBP</ram:InvoiceCurrencyCode>
+      <ram:ApplicableTradeTax>
+        <ram:CalculatedAmount>149.80</ram:CalculatedAmount>
+        <ram:TypeCode>VAT</ram:TypeCode>
+        <ram:BasisAmount>749.00</ram:BasisAmount>
+        <ram:CategoryCode>S</ram:CategoryCode>
+        <ram:RateApplicablePercent>20.00</ram:RateApplicablePercent>
+      </ram:ApplicableTradeTax>
+      <ram:SpecifiedTradePaymentTerms>
+        <ram:DueDateDateTime>
+          <udt:DateTimeString format="102">20260824</udt:DateTimeString>
+        </ram:DueDateDateTime>
+      </ram:SpecifiedTradePaymentTerms>      <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
+        <ram:LineTotalAmount>749.00</ram:LineTotalAmount>
+        <ram:TaxBasisTotalAmount>749.00</ram:TaxBasisTotalAmount>
+        <ram:TaxTotalAmount currencyID="GBP">149.80</ram:TaxTotalAmount>
+        <ram:GrandTotalAmount>898.80</ram:GrandTotalAmount>
+        <ram:DuePayableAmount>898.80</ram:DuePayableAmount>
+      </ram:SpecifiedTradeSettlementHeaderMonetarySummation>
+    </ram:ApplicableHeaderTradeSettlement>
+  </rsm:SupplyChainTradeTransaction>
+</rsm:CrossIndustryInvoice>

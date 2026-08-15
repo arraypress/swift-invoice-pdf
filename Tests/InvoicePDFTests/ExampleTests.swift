@@ -302,6 +302,65 @@ final class ExampleTests: XCTestCase {
         }
     }
 
+    // MARK: An e-invoice
+
+    func testAnEInvoice() throws {
+        // The page and the record in one file: what Germany, France and Italy
+        // are all asking for. Only written where there is a face to embed —
+        // PDF/A carries its fonts, and the base-14 ones belong to the reader.
+        let arial = URL(fileURLWithPath: "/Library/Fonts/Arial Unicode.ttf")
+        try XCTSkipUnless(FileManager.default.fileExists(atPath: arial.path), "no face to embed")
+
+        var family = FontFamily(name: "Arial Unicode")
+        family.add(try EmbeddedFont.load(arial), weight: .regular)
+
+        let invoice = Invoice(
+            branding: Self.branding,
+            number: "INV-2026-0042",
+            from: Self.supplier,
+            to: Self.germanCustomer,
+            items: Self.items,
+            totals: [("Subtotal", "£749.00"), ("VAT at 20%", "£149.80")],
+            total: [("Total due", "£898.80")],
+            details: [("Issued", "31 July 2026"), ("Due", "30 August 2026")],
+            notes: "Payment by bank transfer to the account on file.",
+            vatLines: [VatLine(rate: "20%", net: "£749.00", vat: "£149.80")],
+            supplyDate: "31 July 2026",
+            reference: "PO-4471"
+        )
+
+        let data = try invoice.facturXDocument(
+            FacturX(
+                currency: "GBP",
+                issued: Date(timeIntervalSince1970: 1_785_000_000),
+                due: Date(timeIntervalSince1970: 1_787_600_000),
+                totals: .init(net: 749, tax: 149.80, gross: 898.80),
+                taxRate: 20,
+                buyerReference: "PO-4471"
+            ),
+            in: family,
+            creationDate: Self.stamped
+        )
+
+        XCTAssertNotNil(PDFDocument(data: data))
+        guard writing else { return }
+
+        let file = directory.appendingPathComponent("e-invoice/factur-x.pdf")
+        try FileManager.default.createDirectory(
+            at: file.deletingLastPathComponent(), withIntermediateDirectories: true
+        )
+        try data.write(to: file)
+
+        // The XML beside it, so the two halves can be read separately.
+        try invoice.facturX(FacturX(
+            currency: "GBP",
+            issued: Date(timeIntervalSince1970: 1_785_000_000),
+            due: Date(timeIntervalSince1970: 1_787_600_000),
+            totals: .init(net: 749, tax: 149.80, gross: 898.80),
+            taxRate: 20, buyerReference: "PO-4471"
+        )).write(to: directory.appendingPathComponent("e-invoice/factur-x.xml"))
+    }
+
     // MARK: The look
 
     func testTheSameInvoiceUnderDifferentBranding() throws {
