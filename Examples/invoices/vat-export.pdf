@@ -22,7 +22,7 @@ endobj
 <</Type /Page /Parent 2 0 R /Resources <</Font <</F1 3 0 R /F2 4 0 R /F3 5 0 R>>>> /Annots [<</Type /Annot /Subtype /Link /Rect [48.00 634.41 158.66 643.41] /Border [0 0 0] /F 4 /A <</Type /Action /S /URI /URI (mailto:ap@northwindsystems.com)>>>>] /Contents 8 0 R>>
 endobj
 8 0 obj
-<</Length 3515>>
+<</Length 3581>>
 stream
 q
 0.122 0.227 0.373 rg
@@ -351,29 +351,36 @@ Q
 q
 0.839 0.839 0.839 RG
 0.50 w
-48.00 427.89 m
-547.28 427.89 l
+48.00 413.89 m
+547.28 413.89 l
 S
 Q
 q
 0.839 0.839 0.839 RG
 0.50 w
-48.00 395.89 m
-547.28 395.89 l
+48.00 379.89 m
+547.28 379.89 l
+S
+Q
+q
+0.839 0.839 0.839 RG
+0.50 w
+547.28 413.89 m
+547.28 379.89 l
 S
 Q
 q
 0.125 0.125 0.125 RG
 2.00 w
-48.00 427.89 m
-48.00 395.89 l
+48.00 413.89 m
+48.00 379.89 l
 S
 Q
 q
 0.125 0.125 0.125 rg
 BT
 /F2 8.50 Tf
-62.00 405.26 Td
+63.00 396.26 Td
 (Zero-rated export outside the European Union.) Tj
 ET
 Q
@@ -409,5 +416,5 @@ xref
 trailer
 <</Size 9 /Root 1 0 R /Info 6 0 R /ID [<2EA2822A5D18719F8E567EE73300560B> <2EA2822A5D18719F8E567EE73300560B>]>>
 startxref
-7162
+7228
 %%EOF

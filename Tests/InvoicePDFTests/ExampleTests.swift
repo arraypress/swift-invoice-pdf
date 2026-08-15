@@ -302,6 +302,66 @@ final class ExampleTests: XCTestCase {
         }
     }
 
+    // MARK: Scan to pay
+
+    func testAnInvoiceWithAPaymentCode() throws {
+        // A transposed IBAN digit is a payment that bounces a week later, and
+        // a missing reference is one nobody can match to an invoice.
+        let epc = try XCTUnwrap(PaymentCode.epc(
+            beneficiary: "SwiftInvoices Ltd",
+            iban: "DE89 3704 0044 0532 0130 00",
+            amount: 677.11,
+            bic: "COBADEFFXXX",
+            reference: "INV-2026-0044"
+        ))
+
+        let invoice = Invoice(
+            branding: Self.branding,
+            number: "INV-2026-0044",
+            from: Self.supplier,
+            to: Self.germanCustomer,
+            items: [
+                LineItem(description: "Document generation licence — annual",
+                         amount: "€149,00", quantity: "1", unitPrice: "€149,00"),
+                LineItem(description: "Template design and setup",
+                         amount: "€420,00", quantity: "6", unitPrice: "€70,00"),
+            ],
+            totals: [("Subtotal", "€569,00"), ("USt. 19%", "€108,11")],
+            total: [("Total due", "€677,11")],
+            details: [("Issued", "31 July 2026"), ("Due", "30 August 2026")],
+            notes: "Payment by SEPA credit transfer to IBAN DE89 3704 0044 0532 0130 00, "
+                + "quoting the invoice number.",
+            vatLines: [VatLine(rate: "19%", net: "€569,00", vat: "€108,11")],
+            supplyDate: "31 July 2026",
+            paymentCode: epc
+        )
+
+        try put(invoice.render(), "invoices/qr-sepa.pdf")
+    }
+
+    func testAReminderWithAPaymentLink() throws {
+        let invoice = Invoice(
+            kind: .reminder,
+            branding: Self.branding,
+            number: "REM-2026-0042",
+            from: Self.supplier,
+            to: Self.customer,
+            items: Self.items,
+            totals: [("Subtotal", "£749.00"), ("VAT at 20%", "£149.80")],
+            total: [("Total due", "£898.80")],
+            details: [("Issued", "31 July 2026"), ("Due", "30 August 2026"),
+                      ("Overdue by", "21 days")],
+            notes: "Our records show this remains unpaid. Please disregard if payment has "
+                + "crossed with this notice.",
+            vatLines: [VatLine(rate: "20%", net: "£749.00", vat: "£149.80")],
+            supplyDate: "31 July 2026",
+            paymentCode: PaymentCode("https://pay.swiftinvoices.co.uk/INV-2026-0042",
+                                     caption: "Pay online")
+        )
+
+        try put(invoice.render(), "invoices/qr-payment-link.pdf")
+    }
+
     // MARK: An e-invoice
 
     func testAnEInvoice() throws {

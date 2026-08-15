@@ -32,6 +32,13 @@ Where VAT is not charged at the domestic rate, the wording *is* the document —
 - [export](invoices/vat-export.pdf) — outside the scope
 - [small-business](invoices/vat-small-business.pdf) — §19 UStG
 
+## Scan to pay
+
+- [qr-sepa](invoices/qr-sepa.pdf) — an EPC code a European banking app scans for a SEPA credit transfer
+- [qr-payment-link](invoices/qr-payment-link.pdf) — a reminder with a link to a payment page
+
+Drawn as vector squares rather than embedded as a picture, so the code survives printing and photocopying.
+
 ## Statements and schedules
 
 - [statement](statements/statement.pdf) — running balance with ageing

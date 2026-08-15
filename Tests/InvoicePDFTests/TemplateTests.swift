@@ -5,6 +5,7 @@
 //  Created by David Sherlock on 2026.
 //
 
+import PDFKit
 import XCTest
 @testable import InvoicePDF
 import TextPDF
@@ -341,5 +342,100 @@ final class TemplateTests: XCTestCase {
             XCTAssertTrue(String(decoding: data.suffix(8), as: UTF8.self).contains("%%EOF"))
             XCTAssertGreaterThan(document.pageCount(), 0)
         }
+    }
+}
+
+// MARK: - The VAT notice
+
+extension TemplateTests {
+
+    /// Every straight line drawn on the page, as coordinate pairs.
+    private func segments(_ data: Data) throws -> [(from: (Double, Double), to: (Double, Double))] {
+        let raw = try XCTUnwrap(String(data: data, encoding: .isoLatin1))
+        var found: [(from: (Double, Double), to: (Double, Double))] = []
+        var pending: (Double, Double)?
+
+        for line in raw.split(separator: "\n") {
+            let parts = line.split(separator: " ")
+            if parts.count == 3, parts[2] == "m",
+               let x = Double(parts[0]), let y = Double(parts[1]) {
+                pending = (x, y)
+            } else if parts.count == 3, parts[2] == "l",
+                      let x = Double(parts[0]), let y = Double(parts[1]), let start = pending {
+                found.append((from: start, to: (x, y)))
+            }
+        }
+        return found
+    }
+
+    private func noticed() -> Invoice {
+        Invoice(
+            branding: Branding(name: "SwiftInvoices Ltd"),
+            number: "INV-1",
+            from: Party(name: "S", address: ["1 Road"], taxID: "GB1"),
+            to: Party(name: "B", address: ["2 Road"]),
+            items: [LineItem(description: "Thing", amount: "£1.00")],
+            totals: [("Subtotal", "£1.00")],
+            vat: .smallBusiness,
+            supplyDate: "1 August 2026",
+            germanNotes: true
+        )
+    }
+
+    func testTheNoticeIsAClosedBox() throws {
+        // It was drawn on three sides, which reads as a box somebody forgot
+        // to finish rather than as a box.
+        let document = noticed().render()
+        let drawn = try segments(document.render())
+
+        let left = document.left(), right = document.right()
+        let verticals = drawn.filter { abs($0.from.0 - $0.to.0) < 0.01 }
+
+        XCTAssertTrue(verticals.contains { abs($0.from.0 - left) < 0.01 },
+                      "no left edge")
+        XCTAssertTrue(verticals.contains { abs($0.from.0 - right) < 0.01 },
+                      "no right edge — the box is open")
+    }
+
+    func testTheNoticeSitsInTheMiddleOfItsOwnRule() throws {
+        // The version this replaced left sixteen points of air above the text
+        // and four below it, so the block sat visibly high in its own rule.
+        let document = noticed().render()
+        let data = document.render()
+        let raw = try XCTUnwrap(String(data: data, encoding: .isoLatin1))
+
+        // The notice's own baselines, found by the words on them rather than
+        // by position — every other line on the page is somebody else's.
+        var baselines: [Double] = []
+        var pending: Double?
+        for line in raw.split(separator: "\n") {
+            let parts = line.split(separator: " ")
+            if parts.count == 3, parts[2] == "Td", let y = Double(parts[1]) { pending = y }
+            if line.contains("Tj"), line.contains("No VAT charged") || line.contains("UStG"),
+               let y = pending {
+                baselines.append(y)
+            }
+        }
+        XCTAssertEqual(baselines.count, 2, "the notice should be two lines")
+
+        let highest = try XCTUnwrap(baselines.max())
+        let lowest = try XCTUnwrap(baselines.min())
+
+        // Its own rules: the full-width ones immediately above and below.
+        let rules = try segments(data)
+            .filter { abs($0.from.1 - $0.to.1) < 0.01 && abs($0.to.0 - $0.from.0) > 400 }
+            .map(\.from.1)
+
+        let top = try XCTUnwrap(rules.filter { $0 > highest }.min())
+        let bottom = try XCTUnwrap(rules.filter { $0 < lowest }.max())
+
+        let above = top - highest
+        let below = lowest - bottom
+
+        // Not identical: a baseline sits above the descender, so the measured
+        // gap below is to the bottom of the type rather than the top of it.
+        // Within four points is the difference between centred and not.
+        XCTAssertEqual(above, below, accuracy: 4,
+                       "the notice is \(above) above and \(below) below its own rule")
     }
 }

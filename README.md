@@ -30,8 +30,27 @@ A credit note that does not reference the invoice it reverses, or a self-billed 
 - ✒️ **Your own typeface** — set the documents in a brand family, with a reported fallback for anything it cannot draw
 - 🖼️ **Vector logos** — an SVG `path`, sharp at any zoom
 - 📄 **Multi-page** — headings repeat, footers know the total
+- ▦ **Payment codes** — an EPC code for a SEPA transfer, or any payload; drawn as vector, so it scans off a photocopy
 - 🇪🇺 **Factur-X / ZUGFeRD** — the invoice as XML inside a PDF/A-3, which is what an e-invoice is
 - 🪶 **One dependency** — the writer, which has none
+
+## Scan to pay
+
+A transposed IBAN digit is a payment that bounces a week later; a missing reference is one nobody can match to an invoice. A code removes both.
+
+```swift
+let code = PaymentCode.epc(
+    beneficiary: "SwiftInvoices Ltd",
+    iban: "DE89 3704 0044 0532 0130 00",
+    amount: 677.11,
+    reference: "INV-2026-0044"
+)
+Invoice(…, paymentCode: code)
+```
+
+`epc` builds what a European banking app expects and enforces the rules that bite — euro only, the name capped at 70 characters, the reference at 140 — returning `nil` rather than a code that shows an error instead of a payment. Anything else is a payload you supply: a payment page, a card processor's URL, a Swiss QR-bill string.
+
+The code is drawn beside the payment wording, and the wording is set to a narrower measure so the two never collide. [Examples](Examples/invoices/qr-sepa.pdf).
 
 ## E-invoicing
 

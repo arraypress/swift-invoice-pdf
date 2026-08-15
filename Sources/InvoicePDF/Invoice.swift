@@ -168,6 +168,9 @@ public struct Invoice: Sendable {
     /// Print the German wording as well as the English.
     public let germanNotes: Bool
 
+    /// A code to scan, printed beside the payment wording.
+    public let paymentCode: PaymentCode?
+
     public init(
         kind: DocumentKind = .invoice,
         branding: Branding,
@@ -185,7 +188,8 @@ public struct Invoice: Sendable {
         vatLines: [VatLine] = [],
         supplyDate: String = "",
         reference: String = "",
-        germanNotes: Bool = false
+        germanNotes: Bool = false,
+        paymentCode: PaymentCode? = nil
     ) {
         self.kind = kind
         self.branding = branding
@@ -204,6 +208,7 @@ public struct Invoice: Sendable {
         self.supplyDate = supplyDate
         self.reference = reference
         self.germanNotes = germanNotes
+        self.paymentCode = paymentCode
     }
 
     // MARK: Compliance
@@ -600,43 +605,71 @@ public struct Invoice: Sendable {
         let notes = vat.notes(german: germanNotes)
         guard !notes.isEmpty else { return }
 
-        let inner = pdf.contentWidth() - 28
-        let height = 20 + notes.reduce(0.0) { total, note in
+        // The box is measured from its content rather than from a guess:
+        // the same padding above and below, and an inner width that allows
+        // for the indent on both sides. The version this replaces used a
+        // constant for the height and started the text two points below the
+        // cursor, which left sixteen points of air at the top against four at
+        // the bottom — the block sat visibly high in its own rule.
+        let padding = 11.0
+        let indent = 15.0
+        let inner = pdf.contentWidth() - indent * 2
+
+        let content = notes.reduce(0.0) { total, note in
             total + pdf.blockHeight(note, size: 8.5, width: inner, leading: 12)
         }
+        let height = content + padding * 2
 
         pdf.gap(24)
-        pdf.breakIfNeeded(height + 20)
+        pdf.breakIfNeeded(height + 16)
 
-        let top = pdf.cursor() + 14
-        let bottom = pdf.cursor() - height + 14
+        let top = pdf.cursor()
+        let bottom = top - height
 
-        pdf.line(from: pdf.left(), top, to: pdf.right(), top, color: branding.hairline, thickness: 0.5)
-        pdf.line(from: pdf.left(), bottom, to: pdf.right(), bottom, color: branding.hairline, thickness: 0.5)
+        pdf.line(from: pdf.left(), top, to: pdf.right(), top,
+                 color: branding.hairline, thickness: 0.5)
+        pdf.line(from: pdf.left(), bottom, to: pdf.right(), bottom,
+                 color: branding.hairline, thickness: 0.5)
+
+        // Closed on the right. Three sides read as a box somebody forgot to
+        // finish; four read as a box.
+        pdf.line(from: pdf.right(), top, to: pdf.right(), bottom,
+                 color: branding.hairline, thickness: 0.5)
 
         // A heavier stub on the left edge draws the eye without needing
         // colour, which matters because this is the wording that makes the
         // document valid for the recipient's deduction.
-        pdf.line(from: pdf.left(), top, to: pdf.left(), bottom, color: branding.ink, thickness: 2)
-        pdf.gap(2)
+        pdf.line(from: pdf.left(), top, to: pdf.left(), bottom,
+                 color: branding.ink, thickness: 2)
 
+        pdf.move(to: top - padding)
         for (index, note) in notes.enumerated() {
-            pdf.block(note, x: pdf.left() + 14, width: inner, size: 8.5,
+            pdf.block(note, x: pdf.left() + indent, width: inner, size: 8.5,
                       font: index == 0 ? .helveticaBold : .helvetica,
                       color: branding.ink, leading: 12)
         }
+        pdf.move(to: bottom)
     }
 
     private func paymentNotes(_ pdf: Document) {
         let trimmed = notes.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
+        guard !trimmed.isEmpty || paymentCode != nil else { return }
+
+        // The code sits against the right edge with the wording beside it, so
+        // the two read as one instruction rather than as a note and a
+        // decoration. Sized to be scanned from a printed page at arm's length.
+        let code = 92.0
+        let gutter = 18.0
+        let hasCode = paymentCode != nil
+        let width = hasCode ? pdf.contentWidth() - code - gutter : pdf.contentWidth()
 
         pdf.gap(26)
-        pdf.breakIfNeeded(70)
+        pdf.breakIfNeeded(hasCode ? code + 46 : 70)
 
         pdf.line(from: pdf.left(), pdf.cursor() + 12, to: pdf.right(), pdf.cursor() + 12,
                  color: branding.hairline, thickness: 0.5)
         pdf.gap(6)
+
         let notesHeading: String
         switch kind {
         case .quote: notesHeading = "TERMS"
@@ -647,7 +680,26 @@ public struct Invoice: Sendable {
                  font: .helveticaBold, color: branding.muted)
         pdf.gap(14)
 
-        pdf.block(trimmed, x: pdf.left(), width: pdf.contentWidth(),
-                  size: 8.5, font: .helvetica, color: branding.ink, leading: 12)
+        let top = pdf.cursor()
+
+        if !trimmed.isEmpty {
+            pdf.block(trimmed, x: pdf.left(), width: width,
+                      size: 8.5, font: .helvetica, color: branding.ink, leading: 12)
+        }
+
+        guard let paymentCode else { return }
+
+        // Drawn from the top of the block rather than after it, so a long
+        // payment note does not push the code down the page on its own.
+        let drawn = pdf.qr(paymentCode.payload, x: pdf.right() - code, y: top - code,
+                           size: code, color: branding.ink)
+
+        if drawn {
+            pdf.textAt(paymentCode.caption, x: pdf.right() - code, y: top - code - 11,
+                       size: 7, color: branding.muted, align: .center, boxWidth: code)
+        }
+
+        // Whichever ran longer decides where the page carries on.
+        pdf.move(to: min(pdf.cursor(), top - code - (drawn ? 18 : 0)))
     }
 }
