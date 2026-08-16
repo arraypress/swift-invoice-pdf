@@ -6,6 +6,7 @@
 //
 
 import CoreGraphics
+import Countries
 import PDFKit
 import XCTest
 @testable import InvoicePDF
@@ -29,9 +30,11 @@ final class FacturXTests: XCTestCase {
             branding: Branding(name: "SwiftInvoices Ltd"),
             number: number,
             from: Party(name: "SwiftInvoices Ltd",
-                        address: ["71 Shelton Street", "London", "GB"], taxID: supplierVAT),
+                        address: ["71 Shelton Street", "London"], taxID: supplierVAT,
+                        country: Country("GB")),
             to: Party(name: "Klangwerk GmbH",
-                      address: ["Oranienburger Str. 87", "Berlin", "DE"], taxID: customerVAT),
+                      address: ["Oranienburger Str. 87", "Berlin"], taxID: customerVAT,
+                      country: Country("DE")),
             items: [LineItem(description: "Licence", amount: "£749.00")],
             totals: [("Subtotal", "£749.00")],
             vat: vat,
@@ -106,8 +109,9 @@ final class FacturXTests: XCTestCase {
         var party = invoice()
         let hostile = Invoice(
             branding: Branding(name: "x"), number: "INV-1",
-            from: Party(name: "Smith & Sons <Ltd>", address: ["1 Road", "GB"], taxID: "GB1"),
-            to: Party(name: "Buyer", address: ["2 Road", "DE"]),
+            from: Party(name: "Smith & Sons <Ltd>", address: ["1 Road"], taxID: "GB1",
+                        country: Country("GB")),
+            to: Party(name: "Buyer", address: ["2 Road"], country: Country("DE")),
             items: [], totals: []
         )
         party = hostile
@@ -372,13 +376,20 @@ extension FacturXTests {
         XCTAssertFalse(xml.contains("1000.00"), "the yen was given decimals it does not have")
     }
 
-    func testTheDinarHasThree() throws {
-        // Rounding this to two places drops a fils off a tax document, which
-        // is money going missing rather than a formatting quibble.
-        let xml = try amounts("KWD", net: 1.234, tax: 0, gross: 1.234)
-
-        XCTAssertTrue(xml.contains("<ram:GrandTotalAmount>1.234</ram:GrandTotalAmount>"), xml)
-        XCTAssertFalse(xml.contains(">1.23<"), "a fils went missing")
+    func testTheDinarCannotBeAnEInvoiceAtAll() throws {
+        // Found by running the official validator, and not what this file
+        // asserted before: EN 16931 caps every document-level amount at two
+        // decimals — BR-DEC-09 through BR-DEC-20 — whatever minor unit the
+        // currency has. The dinar has three, so the standard has nowhere to
+        // put a fils.
+        //
+        // Refused rather than rounded. Rounding would make the XML disagree
+        // with the page, invisibly, until somebody reconciled the two.
+        XCTAssertThrowsError(try amounts("KWD", net: 1.234, tax: 0, gross: 1.234)) {
+            let said = "\($0)"
+            XCTAssertTrue(said.contains("KWD"), said)
+            XCTAssertTrue(said.contains("BR-DEC"), said)
+        }
     }
 
     func testTheOrdinaryCaseIsUnchanged() throws {

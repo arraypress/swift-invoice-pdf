@@ -13,6 +13,7 @@
 //  the result.
 //
 
+import Countries
 import Foundation
 import TextPDF
 
@@ -26,11 +27,31 @@ public struct Party: Sendable, Equatable, Codable {
     public let email: String
     public let taxID: String
 
-    public init(name: String, address: [String] = [], email: String = "", taxID: String = "") {
+    /// Where they are, as an ISO 3166-1 code.
+    ///
+    /// Not printed — the address block already says it, in whatever wording
+    /// the writer chose. This is for the machine-readable half, which has one
+    /// place for a country and wants two letters in it: an e-invoice without
+    /// the seller's country is rejected outright, by rule BR-09 of EN 16931.
+    ///
+    /// It is stated rather than read off the last line of the address,
+    /// because reading it off is guesswork that succeeds quietly. An address
+    /// ending "London WC2H 9JQ" has no country in it at all, and one ending
+    /// "Sacramento, CA" has a country code in it that means Canada.
+    public let country: Country?
+
+    public init(
+        name: String,
+        address: [String] = [],
+        email: String = "",
+        taxID: String = "",
+        country: Country? = nil
+    ) {
         self.name = name
         self.address = address
         self.email = email
         self.taxID = taxID
+        self.country = country
     }
 
     /// The address block, with a link where a line has somewhere to go.

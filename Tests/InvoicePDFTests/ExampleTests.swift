@@ -19,6 +19,7 @@
 //  would otherwise rewrite every file whether or not its content changed.
 //
 
+import Countries
 import PDFKit
 import XCTest
 @testable import InvoicePDF
@@ -68,7 +69,8 @@ final class ExampleTests: XCTestCase {
         name: "SwiftInvoices Ltd",
         address: ["71–75 Shelton Street", "London WC2H 9JQ"],
         email: "accounts@swiftinvoices.co.uk",
-        taxID: "GB 123 4567 89"
+        taxID: "GB 123 4567 89",
+        country: Country("GB")
     )
 
     private static let customer = Party(
@@ -82,7 +84,8 @@ final class ExampleTests: XCTestCase {
         name: "Klangwerk GmbH",
         address: ["Oranienburger Strasse 87", "10178 Berlin", "Deutschland"],
         email: "buchhaltung@klangwerk.de",
-        taxID: "DE 811 5678 90"
+        taxID: "DE 811 5678 90",
+        country: Country("DE")
     )
 
     private static let items = [

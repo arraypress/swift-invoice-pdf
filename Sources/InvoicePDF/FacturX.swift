@@ -27,6 +27,7 @@
 //  page.
 //
 
+import Countries
 import Foundation
 import Money
 import TextPDF
@@ -45,6 +46,15 @@ public struct FacturX: Sendable, Equatable {
         /// The same, with the tax breakdown and payment terms — everything a
         /// ledger needs except the line items.
         case basicWithoutLines = "urn:factur-x.eu:1p0:basicwl"
+
+        /// What the profile is called in the specification, for a message
+        /// that has to name it.
+        public var name: String {
+            switch self {
+            case .minimum: return "Minimum"
+            case .basicWithoutLines: return "Basic WL"
+            }
+        }
     }
 
     /// What the whole document is worth, in figures.
@@ -178,6 +188,21 @@ public struct FacturX: Sendable, Equatable {
     /// invoice to quote. France requires it for public bodies.
     public var buyerReference: String
 
+    /// When the goods or services actually arrived.
+    ///
+    /// Optional on an ordinary invoice and required on an intra-community
+    /// supply, where the zero rate depends on the goods having crossed a
+    /// border on a date — rule BR-IC-11.
+    public var delivered: Date?
+
+    /// Where they arrived, if that is not where the customer is.
+    ///
+    /// Defaults to the customer's own country, which is where a delivery
+    /// goes unless somebody says otherwise. An intra-community supply must
+    /// state one — rule BR-IC-12 — because the country it went to is the
+    /// whole basis of the zero rate.
+    public var deliveredTo: Country?
+
     public init(
         profile: Profile = .minimum,
         currency: String,
@@ -185,7 +210,9 @@ public struct FacturX: Sendable, Equatable {
         due: Date? = nil,
         totals: Totals,
         taxRate: Decimal = 0,
-        buyerReference: String = ""
+        buyerReference: String = "",
+        delivered: Date? = nil,
+        deliveredTo: Country? = nil
     ) {
         self.profile = profile
         self.currency = currency
@@ -194,6 +221,8 @@ public struct FacturX: Sendable, Equatable {
         self.totals = totals
         self.taxRate = taxRate
         self.buyerReference = buyerReference
+        self.delivered = delivered
+        self.deliveredTo = deliveredTo
     }
 }
 
@@ -244,8 +273,60 @@ extension Invoice {
         if details.currency.count != 3 {
             missing.append("\"\(details.currency)\" is not an ISO 4217 currency code.")
         }
+        // EN 16931 caps every document-level amount at two decimals — rules
+        // BR-DEC-09 through BR-DEC-20 — whatever the currency's own minor
+        // unit is. So the standard cannot express an invoice in dinars: a
+        // fils is a third decimal, and writing the figure to two loses it.
+        //
+        // Refused rather than rounded. Rounding would make the XML disagree
+        // with the page by up to half a fils, which is the exact thing the
+        // figures are worked out once to prevent, and the disagreement would
+        // be invisible until somebody reconciled the two.
+        let money = Currency(details.currency)
+        if money.decimals > 2 {
+            missing.append(
+                "An e-invoice cannot be written in \(money.code). It has \(money.decimals) "
+                + "decimal places and EN 16931 allows two (BR-DEC-09 to BR-DEC-20), so the "
+                + "amounts would have to lose a digit the currency actually uses."
+            )
+        }
         if vat == .reverseCharge, to.taxID.trimmingCharacters(in: .whitespaces).isEmpty {
             missing.append("Reverse charge needs the customer's VAT number.")
+        }
+        // BR-09. A validator rejects the document outright without it, and
+        // the rejection arrives days later — so it is refused here, where the
+        // fix is one field.
+        if from.country == nil {
+            missing.append(
+                "The supplier has no country. EN 16931 requires one in the address "
+                + "(BR-09) — set Party(country:), which is not printed."
+            )
+        }
+        // BR-11, which applies from Basic WL up: that profile carries the
+        // buyer's address, and an address there needs its country too.
+        if details.profile != .minimum, to.country == nil {
+            missing.append(
+                "The customer has no country. The \(details.profile.name) profile carries their "
+                + "address, and EN 16931 requires a country in it (BR-11)."
+            )
+        }
+        // BR-IC-11 and BR-IC-12. The zero rate on an intra-community supply
+        // rests on the goods having crossed a border, so the document has to
+        // say which border and on what day. Without either, the document
+        // claims a zero rate it does not evidence.
+        if vat == .intraCommunitySupply, details.profile != .minimum {
+            if details.delivered == nil {
+                missing.append(
+                    "An intra-community supply needs the date the goods arrived "
+                    + "(BR-IC-11) — set FacturX(delivered:)."
+                )
+            }
+            if details.deliveredTo ?? to.country == nil {
+                missing.append(
+                    "An intra-community supply needs the country the goods went to "
+                    + "(BR-IC-12) — set FacturX(deliveredTo:), or the customer's country."
+                )
+            }
         }
         // A document whose own totals disagree is one a buyer's system
         // rejects — and the rejection arrives days later, against your name.
@@ -344,8 +425,8 @@ enum FacturXWriter {
               </ram:SellerTradeParty>
               <ram:BuyerTradeParty>
                 <ram:Name>\(escaped(invoice.to.name))</ram:Name>
-        \(address(invoice.to))\
-        \(invoice.to.taxID.isEmpty ? "" : """
+        \(details.profile == .minimum ? "" : address(invoice.to))\
+        \(details.profile == .minimum || invoice.to.taxID.isEmpty ? "" : """
                 <ram:SpecifiedTaxRegistration>
                   <ram:ID schemeID="VA">\(escaped(invoice.to.taxID))</ram:ID>
                 </ram:SpecifiedTaxRegistration>
@@ -370,13 +451,18 @@ enum FacturXWriter {
         // The tax block. Under reverse charge the amount is zero and the
         // category code carries the reason — a system that sees "0" with no
         // reason files it as a mistake.
+        //
+        // The order of these is not a style: CII declares a sequence, so a
+        // reader hits the first element out of place and rejects the file.
+        // ExemptionReason is third, before BasisAmount, however naturally it
+        // reads next to the category code it explains.
         let tax = """
               <ram:ApplicableTradeTax>
                 <ram:CalculatedAmount>\(amount(details.totals.tax, in: currency))</ram:CalculatedAmount>
                 <ram:TypeCode>VAT</ram:TypeCode>
+        \(category.reason.isEmpty ? "" : "        <ram:ExemptionReason>\(escaped(category.reason))</ram:ExemptionReason>\n")\
                 <ram:BasisAmount>\(amount(details.totals.net, in: currency))</ram:BasisAmount>
                 <ram:CategoryCode>\(category.code)</ram:CategoryCode>
-        \(category.reason.isEmpty ? "" : "        <ram:ExemptionReason>\(escaped(category.reason))</ram:ExemptionReason>\n")\
                 <ram:RateApplicablePercent>\(Money(details.taxRate, in: Currency("XXX")).decimalString)</ram:RateApplicablePercent>
               </ram:ApplicableTradeTax>
         """
@@ -409,7 +495,7 @@ enum FacturXWriter {
           </rsm:ExchangedDocument>
           <rsm:SupplyChainTradeTransaction>
         \(indented(trade))\
-            <ram:ApplicableHeaderTradeDelivery/>
+        \(delivery(invoice, details: details))\
             <ram:ApplicableHeaderTradeSettlement>
               <ram:InvoiceCurrencyCode>\(escaped(currency))</ram:InvoiceCurrencyCode>
         \(tax)
@@ -429,18 +515,70 @@ enum FacturXWriter {
 
     // MARK: Pieces
 
-    private static func address(_ party: Party) -> String {
-        guard !party.address.isEmpty else { return "" }
+    /// Where the goods went and when.
+    ///
+    /// Empty on an ordinary invoice, because nothing here is required and an
+    /// empty element is what the Minimum profile expects. An intra-community
+    /// supply is different: the zero rate rests on the goods having crossed a
+    /// border on a date, so BR-IC-11 and BR-IC-12 require both, and without
+    /// them a validator rejects the document.
+    ///
+    /// The order is CII's, not this file's: ShipToTradeParty comes before the
+    /// delivery event, and a reader stops at the first element out of place.
+    /// `yyyyMMdd`, which is what format 102 means.
+    private static var compactDate: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyyMMdd"
+        return formatter
+    }
 
-        // The last line is taken as the country where it is two letters, which
-        // is the only part of an address the standard insists on.
-        var lines = party.address
-        var country = ""
-        if let last = lines.last, last.count == 2, last == last.uppercased() {
-            country = last
-            lines.removeLast()
+    private static func delivery(_ invoice: Invoice, details: FacturX) -> String {
+        // The Minimum profile has no delivery group at all.
+        guard details.profile != .minimum else {
+            return "    <ram:ApplicableHeaderTradeDelivery/>"
         }
 
+        let country = details.deliveredTo ?? invoice.to.country
+        var out = "    <ram:ApplicableHeaderTradeDelivery>\n"
+
+        if let country {
+            out += """
+                  <ram:ShipToTradeParty>
+                    <ram:PostalTradeAddress>
+                      <ram:CountryID>\(escaped(country.code))</ram:CountryID>
+                    </ram:PostalTradeAddress>
+                  </ram:ShipToTradeParty>
+
+            """
+        }
+        if let delivered = details.delivered {
+            out += """
+                  <ram:ActualDeliverySupplyChainEvent>
+                    <ram:OccurrenceDateTime>
+                      <udt:DateTimeString format="102">\(compactDate.string(from: delivered))</udt:DateTimeString>
+                    </ram:OccurrenceDateTime>
+                  </ram:ActualDeliverySupplyChainEvent>
+
+            """
+        }
+        out += "    </ram:ApplicableHeaderTradeDelivery>"
+        return out
+    }
+
+    /// The party's address, as the standard wants it.
+    ///
+    /// The country is the one part of an address the standard insists on —
+    /// `CountryID` is required, once, and a document without it fails BR-09
+    /// at any validator. It comes from ``Party/country`` rather than from the
+    /// last line of the address: the previous version took a two-letter final
+    /// line as the country, which found nothing in "London WC2H 9JQ" and
+    /// would have found Canada in "Sacramento, CA".
+    private static func address(_ party: Party) -> String {
+        guard !party.address.isEmpty || party.country != nil else { return "" }
+
+        let lines = party.address
         var out = "        <ram:PostalTradeAddress>\n"
         if let first = lines.first {
             out += "          <ram:LineOne>\(escaped(first))</ram:LineOne>\n"
@@ -448,8 +586,8 @@ enum FacturXWriter {
         if lines.count > 1 {
             out += "          <ram:LineTwo>\(escaped(lines[1]))</ram:LineTwo>\n"
         }
-        if !country.isEmpty {
-            out += "          <ram:CountryID>\(escaped(country))</ram:CountryID>\n"
+        if let country = party.country {
+            out += "          <ram:CountryID>\(escaped(country.code))</ram:CountryID>\n"
         }
         out += "        </ram:PostalTradeAddress>\n"
         return out

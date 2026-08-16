@@ -1,3 +1,7 @@
 dist/
 .build/
 .DS_Store
+
+# The validator fetches ~120MB of published artefacts; they are not ours to vendor.
+.validator/
+Scripts/Generator/.build/

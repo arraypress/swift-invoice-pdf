@@ -23,6 +23,7 @@
           <ram:PostalTradeAddress>
             <ram:LineOne>71–75 Shelton Street</ram:LineOne>
             <ram:LineTwo>London WC2H 9JQ</ram:LineTwo>
+            <ram:CountryID>GB</ram:CountryID>
           </ram:PostalTradeAddress>
           <ram:SpecifiedTaxRegistration>
             <ram:ID schemeID="VA">GB 123 4567 89</ram:ID>
@@ -30,20 +31,12 @@
         </ram:SellerTradeParty>
         <ram:BuyerTradeParty>
           <ram:Name>Klangwerk GmbH</ram:Name>
-          <ram:PostalTradeAddress>
-            <ram:LineOne>Oranienburger Strasse 87</ram:LineOne>
-            <ram:LineTwo>10178 Berlin</ram:LineTwo>
-          </ram:PostalTradeAddress>
-          <ram:SpecifiedTaxRegistration>
-            <ram:ID schemeID="VA">DE 811 5678 90</ram:ID>
-          </ram:SpecifiedTaxRegistration>
         </ram:BuyerTradeParty>
             <ram:BuyerOrderReferencedDocument>
           <ram:IssuerAssignedID>PO-4471</ram:IssuerAssignedID>
         </ram:BuyerOrderReferencedDocument>
       </ram:ApplicableHeaderTradeAgreement>
-    <ram:ApplicableHeaderTradeDelivery/>
-    <ram:ApplicableHeaderTradeSettlement>
+    <ram:ApplicableHeaderTradeDelivery/>    <ram:ApplicableHeaderTradeSettlement>
       <ram:InvoiceCurrencyCode>GBP</ram:InvoiceCurrencyCode>
       <ram:ApplicableTradeTax>
         <ram:CalculatedAmount>149.80</ram:CalculatedAmount>

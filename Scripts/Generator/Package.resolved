@@ -1,0 +1,32 @@
+{
+  "pins" : [
+    {
+      "identity" : "swift-countries",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/arraypress/swift-countries.git",
+      "state" : {
+        "revision" : "7f09b1b8febee0460bce81a7d445fbae4050a330",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "swift-money",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/arraypress/swift-money.git",
+      "state" : {
+        "revision" : "e928100f488759aac1593ba1887a2d25cb15a872",
+        "version" : "1.1.0"
+      }
+    },
+    {
+      "identity" : "swift-text-pdf",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/arraypress/swift-text-pdf.git",
+      "state" : {
+        "revision" : "7e0f1d1f5688921fccfed05742fa132b199f972e",
+        "version" : "2.4.1"
+      }
+    }
+  ],
+  "version" : 2
+}

@@ -5,6 +5,7 @@
 //  Created by David Sherlock on 2026.
 //
 
+import Countries
 import Foundation
 import Money
 import PDFKit
@@ -83,8 +84,10 @@ final class TotalsTests: XCTestCase {
         let invoice = Invoice(
             branding: Branding(name: "SwiftInvoices Ltd"),
             number: "INV-2026-0044",
-            from: Party(name: "SwiftInvoices Ltd", address: ["71 Shelton Street"], taxID: "GB1"),
-            to: Party(name: "Klangwerk GmbH", address: ["Oranienburger Str. 87"], taxID: "DE1"),
+            from: Party(name: "SwiftInvoices Ltd", address: ["71 Shelton Street"], taxID: "GB1",
+                        country: Country("GB")),
+            to: Party(name: "Klangwerk GmbH", address: ["Oranienburger Str. 87"], taxID: "DE1",
+                      country: Country("DE")),
             items: sums.items(in: Locale(identifier: "en_GB")),
             totals: sums.rows(in: Locale(identifier: "en_GB")),
             total: [("Total due", sums.gross.formatted(in: Locale(identifier: "en_GB")))],

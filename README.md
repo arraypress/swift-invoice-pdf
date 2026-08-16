@@ -95,13 +95,33 @@ Before this, an e-invoice made you write every figure twice — once as a string
 
 Built on [swift-money](https://github.com/arraypress/swift-money), which counts in the currency's smallest unit and knows how many that is.
 
+## Checked against a real validator
+
+The XML goes through the published conformance tools, not just our own tests:
+
+```sh
+Scripts/validate-facturx.sh
+```
+
+It fetches the UN/CEFACT **CII D16B schema** and the **Factur-X profile rules** as Schematron, generates a document for every VAT treatment, profile and currency, and marks each one. Nothing is uploaded — the artefacts are public, the invoices stay on your machine. Needs `python3` and `xmllint`, both of which ship with macOS; Saxon arrives through pip, so there is no JDK.
+
+The first run of it found five things this library got wrong, all of which looked right and passed every test:
+
+| Finding | What it was |
+|---|---|
+| **BR-09** | Every document was missing the seller's country, and would have been rejected outright. It was read off the last address line where that line was two capitals — which finds nothing in "London WC2H 9JQ" and finds Canada in "Sacramento, CA". `Party(country:)` now states it. |
+| **Sequence** | `ExemptionReason` was written after `CategoryCode` — the reason beside the code it explains, which reads well and is invalid. CII declares a sequence; a reader stops at the first element out of place. |
+| **Minimum** | Carried the buyer's address and tax registration, neither of which that profile permits. |
+| **BR-IC-11/12** | An intra-community supply claimed a zero rate without saying which border the goods crossed or when. `FacturX(delivered:deliveredTo:)` now carries both, and the document is refused without them. |
+| **BR-DEC-09…20** | EN 16931 caps every document amount at **two** decimals whatever the currency's minor unit is — so an e-invoice in Kuwaiti dinars is impossible, and is now refused rather than quietly rounded. |
+
 ## Money, and how many decimals it has
 
 Every amount printed on the page is a string, so `¥1,234` and `€1.234,56` pass through exactly as written — formatting money means knowing a currency's separators and symbol placement, and that belongs where the money lives.
 
 The figures given for an e-invoice are `Decimal`, not cents, and they are written to **the number of places their currency actually has**:
 
-| | |
+| Currency | Places it is written to |
 |---|---|
 | `JPY`, `KRW`, `ISK`, `CLP`, `VND`, `XOF`… | none — `1000`, not `1000.00` |
 | most | two — `898.80` |
@@ -109,6 +129,8 @@ The figures given for an e-invoice are `Decimal`, not cents, and they are writte
 | `CLF`, `UYW` | four |
 
 Two places was hard-coded before, which wrote the yen with decimals it does not have and **silently dropped a fils** off a Kuwaiti dinar — money going missing from a tax document rather than a formatting quibble.
+
+> On the **page**, all of the above holds. In **Factur-X**, it does not: EN 16931 caps document-level amounts at two decimals (BR-DEC-09 to BR-DEC-20) regardless of currency, so the three- and four-place currencies cannot be e-invoiced at all. `facturX()` refuses them by name rather than rounding a fils away where nobody would see it.
 
 Amounts finer than their currency are **rounded, not refused**: 20% of 1234.56 is 246.912, and every accounting system writes 246.91. The totals are then checked as the document prints them, because that is what a customer adds up.
 

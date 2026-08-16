@@ -13,6 +13,7 @@
 //  and seventy others where nothing was written with them in mind.
 //
 
+import Countries
 import Foundation
 import Money
 import PDFKit
@@ -134,36 +135,43 @@ final class EveryCurrencyInvoiceTests: XCTestCase {
         }
     }
 
-    func testAnEInvoiceInAJapaneseAndAKuwaitiInvoiceBothSurviveTheWholeWay() throws {
-        // End to end for the two that break naive money code: the currency
-        // with no minor unit and the one with three.
-        for code in ["JPY", "KWD"] {
-            let currency = Currency(code)
-            let sums = totals(in: currency)
+    private func eInvoice(in currency: Currency) throws -> Data {
+        let sums = totals(in: currency)
+        let invoice = Invoice(
+            branding: Branding(name: "SwiftInvoices Ltd"),
+            number: "INV-2026-0092",
+            from: Party(name: "SwiftInvoices Ltd", address: ["71 Shelton Street"],
+                        taxID: "GB123456789", country: Country("GB")),
+            to: Party(name: "Klangwerk GmbH", address: ["Oranienburger Str. 87"],
+                      taxID: "DE811234567", country: Country("DE")),
+            items: sums.items(),
+            totals: sums.rows(),
+            total: [("Total due", sums.gross.formatted())],
+            vatLines: sums.vatLines()
+        )
+        return try invoice.facturX(sums.facturX(issued: issued))
+    }
 
-            let invoice = Invoice(
-                branding: Branding(name: "SwiftInvoices Ltd"),
-                number: "INV-2026-0092",
-                from: Party(name: "SwiftInvoices Ltd", address: ["71 Shelton Street"],
-                            taxID: "GB123456789"),
-                to: Party(name: "Klangwerk GmbH", address: ["Oranienburger Str. 87"],
-                          taxID: "DE811234567"),
-                items: sums.items(),
-                totals: sums.rows(),
-                total: [("Total due", sums.gross.formatted())],
-                vatLines: sums.vatLines()
-            )
+    func testTheYenGoesTheWholeWay() throws {
+        // The currency with no minor unit, end to end.
+        let sums = totals(in: .jpy)
+        let xml = try XCTUnwrap(String(data: try eInvoice(in: .jpy), encoding: .utf8))
 
-            let xml = try XCTUnwrap(
-                String(data: try invoice.facturX(sums.facturX(issued: issued)), encoding: .utf8)
-            )
+        XCTAssertTrue(xml.contains("<ram:InvoiceCurrencyCode>JPY</ram:InvoiceCurrencyCode>"), xml)
+        XCTAssertTrue(
+            xml.contains("<ram:GrandTotalAmount>\(sums.gross.decimalString)</ram:GrandTotalAmount>"),
+            "the gross in the XML is not the gross that was worked out"
+        )
+        XCTAssertFalse(xml.contains("<ram:GrandTotalAmount>163900.00"), "the yen got decimals")
+    }
 
-            XCTAssertTrue(xml.contains("currencyID=\"\(code)\"") || xml.contains(">\(code)<"),
-                          "\(code) is not named in the XML")
-            XCTAssertTrue(
-                xml.contains("<ram:GrandTotalAmount>\(sums.gross.decimalString)</ram:GrandTotalAmount>"),
-                "\(code): the gross in the XML is not the gross that was worked out"
-            )
+    func testTheDinarCannotBeAnEInvoiceAtAll() {
+        // Found by the official validator: EN 16931 caps document amounts at
+        // two decimals (BR-DEC-09 to BR-DEC-20) whatever the currency's minor
+        // unit is, and the dinar has three. Refused rather than rounded — a
+        // fils quietly lost is worse than a document that will not be built.
+        XCTAssertThrowsError(try eInvoice(in: Currency("KWD"))) {
+            XCTAssertTrue("\($0)".contains("BR-DEC"), "\($0)")
         }
     }
 
