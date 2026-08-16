@@ -94,6 +94,21 @@ public struct FacturX: Sendable, Equatable {
             let code = currency.isEmpty ? "XXX" : currency
             let money = Currency(code)
 
+            // Before anything is compared, that all four are amounts at all.
+            // A figure past what money can hold — or one that is not a number
+            // — has to be caught here rather than further down, because
+            // everything after this point formats it, and formatting an
+            // impossible number is where one silently becomes a possible and
+            // completely different one.
+            for (name, value) in [("net", net), ("tax", tax), ("gross", gross), ("due", due)]
+            where Money(exactly: value, in: money) == nil {
+                found.append(
+                    "The \(name) is not an amount that can be written: \(value). "
+                        + "Money runs to about 9×10^18 of a currency's smallest unit."
+                )
+            }
+            guard found.isEmpty else { return found }
+
             func show(_ value: Decimal) -> String {
                 let figure = Money(value, in: Currency(code)).decimalString
                 return currency.isEmpty ? figure : "\(currency) \(figure)"
@@ -445,6 +460,10 @@ enum FacturXWriter {
     ///
     /// Through `Money`, which counts in the currency's smallest unit — so the
     /// figure written here is the same integer the arithmetic used.
+    ///
+    /// The figures reaching this point have already been through
+    /// ``FacturX/Totals/disagreements(currency:)``, which refuses anything
+    /// too large to be written before any XML is built.
     private static func amount(_ value: Decimal, in code: String) -> String {
         Money(value, in: Currency(code)).decimalString
     }

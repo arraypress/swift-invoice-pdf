@@ -51,12 +51,26 @@ public struct Totals: Sendable {
 
     public let currency: Currency
 
+    /// - Precondition: Every line is in `currency`. An invoice is in one
+    ///   currency — the code goes at the top of the page and once into the
+    ///   XML, and there is nowhere for a second one to be written. A line in
+    ///   another one is a mistake upstream, and taken this far it would
+    ///   either stop the render halfway or, worse, produce a document
+    ///   labelled in a currency its figures are not in.
     public init(
         lines: [Line],
         rate: Decimal = 0,
         currency: Currency,
         rounding: Money.RoundingMode = .half
     ) {
+        if let stray = lines.first(where: { $0.unitPrice.currency != currency }) {
+            preconditionFailure(
+                "This invoice is in \(currency.code), but '\(stray.description)' is priced in "
+                + "\(stray.unitPrice.currency.code). Convert it before it gets here — that needs "
+                + "a rate and a date, which an invoice records and this does not have."
+            )
+        }
+
         self.lines = lines
         self.rate = rate
         self.currency = currency
@@ -66,8 +80,12 @@ public struct Totals: Sendable {
     // MARK: What follows
 
     /// The lines added up.
+    ///
+    /// Never nil: the currency was stated when this was built, and every
+    /// line was checked against it then, so an invoice with no lines is zero
+    /// in its own currency rather than an absence.
     public var net: Money {
-        Money.total(lines.map(\.amount)) ?? Money.zero(currency)
+        lines.map(\.amount).total(in: currency) ?? Money.zero(currency)
     }
 
     /// The tax, taken on the total rather than per line.
