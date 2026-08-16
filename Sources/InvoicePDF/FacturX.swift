@@ -66,6 +66,11 @@ public struct FacturX: Sendable, Equatable {
         /// What remains payable, after anything already paid.
         public var due: Decimal
 
+        /// - Note: Swift takes a float literal to `Decimal` through `Double`,
+        ///   so `1234.56` arrives as 1234.5599999999997952. It rounds and
+        ///   prints correctly, and the checks here allow for it — but
+        ///   `Decimal(string: "1234.56")` is exact, and exact is what money
+        ///   deserves in code that adds it up.
         public init(net: Decimal, tax: Decimal, gross: Decimal, due: Decimal? = nil) {
             self.net = net
             self.tax = tax
@@ -86,18 +91,29 @@ public struct FacturX: Sendable, Equatable {
             var found: [String] = []
 
             func show(_ value: Decimal) -> String {
-                let formatter = NumberFormatter()
-                formatter.locale = Locale(identifier: "en_US_POSIX")
-                formatter.numberStyle = .decimal
-                formatter.minimumFractionDigits = 2
-                formatter.maximumFractionDigits = 2
-                let figure = formatter.string(from: value as NSDecimalNumber) ?? "\(value)"
+                let figure = Currency.amount(value, in: currency.isEmpty ? "XXX" : currency)
                 return currency.isEmpty ? figure : "\(currency) \(figure)"
             }
 
-            // A penny either way is rounding, and a rate applied per line
-            // legitimately lands there. More than that is a mistake.
-            let tolerance = Decimal(0.011)
+            // Compared as the document prints them, because that is what a
+            // customer adds up. A tax of 20% on 1234.56 is 246.912 and lands
+            // on the page as 246.91; checking the unrounded figures would
+            // report a disagreement nobody can see.
+            let code = currency.isEmpty ? "XXX" : currency
+            func rounded(_ value: Decimal) -> Decimal {
+                Decimal(string: Currency.amount(value, in: code)) ?? value
+            }
+
+            // One of the currency's own smallest units either way is
+            // rounding — a rate applied per line legitimately lands there.
+            // A penny of tolerance would be a hundred times too loose for
+            // the yen and ten times too tight for the dinar.
+            let unit = Currency.smallestUnit(code)
+            let tolerance = unit + unit / 10
+
+            let net = rounded(self.net), tax = rounded(self.tax)
+            let gross = rounded(self.gross), due = rounded(self.due)
+
             let sum = net + tax
             if abs(sum - gross) > tolerance {
                 found.append(
@@ -338,12 +354,12 @@ enum FacturXWriter {
         // reason files it as a mistake.
         let tax = """
               <ram:ApplicableTradeTax>
-                <ram:CalculatedAmount>\(amount(details.totals.tax))</ram:CalculatedAmount>
+                <ram:CalculatedAmount>\(amount(details.totals.tax, in: currency))</ram:CalculatedAmount>
                 <ram:TypeCode>VAT</ram:TypeCode>
-                <ram:BasisAmount>\(amount(details.totals.net))</ram:BasisAmount>
+                <ram:BasisAmount>\(amount(details.totals.net, in: currency))</ram:BasisAmount>
                 <ram:CategoryCode>\(category.code)</ram:CategoryCode>
         \(category.reason.isEmpty ? "" : "        <ram:ExemptionReason>\(escaped(category.reason))</ram:ExemptionReason>\n")\
-                <ram:RateApplicablePercent>\(amount(details.taxRate))</ram:RateApplicablePercent>
+                <ram:RateApplicablePercent>\(Currency.amount(details.taxRate, in: "XXX"))</ram:RateApplicablePercent>
               </ram:ApplicableTradeTax>
         """
 
@@ -381,11 +397,11 @@ enum FacturXWriter {
         \(tax)
         \(dueDate)\
               <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
-                <ram:LineTotalAmount>\(amount(details.totals.net))</ram:LineTotalAmount>
-                <ram:TaxBasisTotalAmount>\(amount(details.totals.net))</ram:TaxBasisTotalAmount>
-                <ram:TaxTotalAmount currencyID="\(escaped(currency))">\(amount(details.totals.tax))</ram:TaxTotalAmount>
-                <ram:GrandTotalAmount>\(amount(details.totals.gross))</ram:GrandTotalAmount>
-                <ram:DuePayableAmount>\(amount(details.totals.due))</ram:DuePayableAmount>
+                <ram:LineTotalAmount>\(amount(details.totals.net, in: currency))</ram:LineTotalAmount>
+                <ram:TaxBasisTotalAmount>\(amount(details.totals.net, in: currency))</ram:TaxBasisTotalAmount>
+                <ram:TaxTotalAmount currencyID="\(escaped(currency))">\(amount(details.totals.tax, in: currency))</ram:TaxTotalAmount>
+                <ram:GrandTotalAmount>\(amount(details.totals.gross, in: currency))</ram:GrandTotalAmount>
+                <ram:DuePayableAmount>\(amount(details.totals.due, in: currency))</ram:DuePayableAmount>
               </ram:SpecifiedTradeSettlementHeaderMonetarySummation>
             </ram:ApplicableHeaderTradeSettlement>
           </rsm:SupplyChainTradeTransaction>
@@ -421,21 +437,10 @@ enum FacturXWriter {
         return out
     }
 
-    /// Two decimal places, a full stop, no separators — what the schema wants
-    /// whatever the page says.
-    private static func amount(_ value: Decimal) -> String {
-        var rounded = Decimal()
-        var input = value
-        NSDecimalRound(&rounded, &input, 2, .plain)
-
-        let formatter = NumberFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        formatter.usesGroupingSeparator = false
-
-        return formatter.string(from: rounded as NSDecimalNumber) ?? "0.00"
+    /// The amount as its own currency writes it: the yen to no places, the
+    /// dinar to three, everything ordinary to two.
+    private static func amount(_ value: Decimal, in code: String) -> String {
+        Currency.amount(value, in: code)
     }
 
     private static func indented(_ block: String) -> String {

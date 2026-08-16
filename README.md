@@ -69,6 +69,25 @@ English always, and a second language beside it — the person reading the invoi
 
 **Not legal advice, and worth a professional's eye before you rely on it.** These are the standard formulations, which are published and formulaic — but a wrong phrase in a language you do not read is worse than an English one you do. [One example per language](Examples/wording).
 
+## Money, and how many decimals it has
+
+Every amount printed on the page is a string, so `¥1,234` and `€1.234,56` pass through exactly as written — formatting money means knowing a currency's separators and symbol placement, and that belongs where the money lives.
+
+The figures given for an e-invoice are `Decimal`, not cents, and they are written to **the number of places their currency actually has**:
+
+| | |
+|---|---|
+| `JPY`, `KRW`, `ISK`, `CLP`, `VND`, `XOF`… | none — `1000`, not `1000.00` |
+| most | two — `898.80` |
+| `KWD`, `BHD`, `OMR`, `TND`, `JOD`, `IQD`, `LYD` | three — `1.234` |
+| `CLF`, `UYW` | four |
+
+Two places was hard-coded before, which wrote the yen with decimals it does not have and **silently dropped a fils** off a Kuwaiti dinar — money going missing from a tax document rather than a formatting quibble.
+
+Amounts finer than their currency are **rounded, not refused**: 20% of 1234.56 is 246.912, and every accounting system writes 246.91. The totals are then checked as the document prints them, because that is what a customer adds up.
+
+> `Decimal` from a float literal goes through `Double`, so `1234.56` arrives as `1234.5599999999997952`. It rounds and prints correctly, and the checks allow for it — but `Decimal(string: "1234.56")` is exact, and exact is what money deserves in code that adds it up.
+
 ## Totals that add up
 
 The figures given for an e-invoice are checked against each other before anything is written:

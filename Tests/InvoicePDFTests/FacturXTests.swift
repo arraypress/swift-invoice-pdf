@@ -350,3 +350,117 @@ extension FacturXTests {
         XCTAssertNoThrow(try invoice().facturX(details()))
     }
 }
+
+// MARK: - Currencies that are not the euro
+
+extension FacturXTests {
+
+    private func amounts(_ currency: String, net: Decimal, tax: Decimal, gross: Decimal) throws -> String {
+        try text(try invoice().facturX(FacturX(
+            currency: currency, issued: issued,
+            totals: .init(net: net, tax: tax, gross: gross)
+        )))
+    }
+
+    func testTheYenHasNoMinorUnit() throws {
+        // ¥1000 is written 1000. Writing 1000.00 says its author did not know
+        // that, and some validators say so louder.
+        let xml = try amounts("JPY", net: 1000, tax: 0, gross: 1000)
+
+        XCTAssertTrue(xml.contains("<ram:GrandTotalAmount>1000</ram:GrandTotalAmount>"), xml)
+        XCTAssertFalse(xml.contains("1000.00"), "the yen was given decimals it does not have")
+    }
+
+    func testTheDinarHasThree() throws {
+        // Rounding this to two places drops a fils off a tax document, which
+        // is money going missing rather than a formatting quibble.
+        let xml = try amounts("KWD", net: 1.234, tax: 0, gross: 1.234)
+
+        XCTAssertTrue(xml.contains("<ram:GrandTotalAmount>1.234</ram:GrandTotalAmount>"), xml)
+        XCTAssertFalse(xml.contains(">1.23<"), "a fils went missing")
+    }
+
+    func testTheOrdinaryCaseIsUnchanged() throws {
+        let xml = try amounts("EUR", net: 749, tax: 149.80, gross: 898.80)
+        XCTAssertTrue(xml.contains("<ram:GrandTotalAmount>898.80</ram:GrandTotalAmount>"), xml)
+    }
+
+    func testEveryPlaceCountIsKnown() {
+        XCTAssertEqual(Currency.places("JPY"), 0)
+        XCTAssertEqual(Currency.places("KRW"), 0)
+        XCTAssertEqual(Currency.places("GBP"), 2)
+        XCTAssertEqual(Currency.places("eur"), 2, "the code should not be case-sensitive")
+        XCTAssertEqual(Currency.places("KWD"), 3)
+        XCTAssertEqual(Currency.places("BHD"), 3)
+        XCTAssertEqual(Currency.places("CLF"), 4)
+        XCTAssertEqual(Currency.places("ZZZ"), 2, "anything unlisted is the common case")
+    }
+
+    func testAYenOfRoundingIsAllowedAndTenAreNot() {
+        // A penny of tolerance would be a hundred times too loose here.
+        XCTAssertEqual(
+            FacturX.Totals(net: 1000, tax: 100, gross: 1101).disagreements(currency: "JPY"), []
+        )
+        XCTAssertFalse(
+            FacturX.Totals(net: 1000, tax: 100, gross: 1110).disagreements(currency: "JPY").isEmpty
+        )
+    }
+
+    func testAFilsOfRoundingIsAllowedOnADinar() {
+        // And a penny of tolerance would be ten times too loose.
+        XCTAssertEqual(
+            FacturX.Totals(net: 1.000, tax: 0.200, gross: 1.201).disagreements(currency: "KWD"), []
+        )
+        XCTAssertFalse(
+            FacturX.Totals(net: 1.000, tax: 0.200, gross: 1.210).disagreements(currency: "KWD").isEmpty
+        )
+    }
+
+    func testTheMessageIsWrittenInTheCurrencysOwnPrecision() {
+        let found = FacturX.Totals(net: 1000, tax: 0, gross: 900).disagreements(currency: "JPY")
+        XCTAssertTrue(try! XCTUnwrap(found.first).contains("JPY 1000"), found.joined())
+        XCTAssertFalse(try! XCTUnwrap(found.first).contains("1000.00"), found.joined())
+    }
+}
+
+extension FacturXTests {
+
+
+}
+
+extension FacturXTests {
+
+    func testTaxComputedFromARateIsRoundedRatherThanRefused() throws {
+        // 20% of 1234.56 is 246.912, and every accounting system on earth
+        // writes 246.91. Refusing it — which an earlier version of this did —
+        // is refusing ordinary arithmetic.
+        let xml = try text(try invoice().facturX(FacturX(
+            currency: "GBP", issued: issued,
+            totals: .init(net: 1234.56, tax: 246.912, gross: 1481.47), taxRate: 20
+        )))
+
+        XCTAssertTrue(xml.contains("<ram:CalculatedAmount>246.91</ram:CalculatedAmount>"), xml)
+    }
+
+    func testTheTotalsAreCheckedAsTheyArePrinted() throws {
+        // Checking the unrounded figures would report a disagreement nobody
+        // can see: 1234.56 + 246.912 is 1481.472, and the page says 1481.47.
+        XCTAssertEqual(
+            FacturX.Totals(net: 1234.56, tax: 246.912, gross: 1481.47)
+                .disagreements(currency: "GBP"),
+            []
+        )
+    }
+
+    func testHalfAYenIsRoundedTheWayTheDocumentPrintsIt() throws {
+        // A tax of 10% on ¥10,005 is ¥1000.5, which is a real figure that a
+        // real invoice rounds. It is written as a whole number of yen.
+        let xml = try text(try invoice().facturX(FacturX(
+            currency: "JPY", issued: issued,
+            totals: .init(net: 10005, tax: 1000.5, gross: 11006)
+        )))
+
+        XCTAssertTrue(xml.contains("<ram:CalculatedAmount>1001</ram:CalculatedAmount>"), xml)
+        XCTAssertFalse(xml.contains("1000.5"), "the yen was written with a decimal")
+    }
+}
