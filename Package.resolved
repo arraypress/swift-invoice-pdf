@@ -1,6 +1,24 @@
 {
-  "originHash" : "0fb0066a2aa7c0cafb0249fc0f2c88deaa5c20f9db0d94b1c29d42627085dc1b",
+  "originHash" : "a5a46fe9bf9237bc571987c539f50180f04c4c61694c0947bd85521ae84f8c9b",
   "pins" : [
+    {
+      "identity" : "swift-countries",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/arraypress/swift-countries.git",
+      "state" : {
+        "revision" : "7f09b1b8febee0460bce81a7d445fbae4050a330",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "swift-money",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/arraypress/swift-money.git",
+      "state" : {
+        "revision" : "f3c1a77f2d75d8020efa0eaea4d5292939781d08",
+        "version" : "1.0.1"
+      }
+    },
     {
       "identity" : "swift-text-pdf",
       "kind" : "remoteSourceControl",

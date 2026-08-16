@@ -28,6 +28,7 @@
 //
 
 import Foundation
+import Money
 import TextPDF
 
 /// The invoice, as the data a system reads.
@@ -90,8 +91,11 @@ public struct FacturX: Sendable, Equatable {
         public func disagreements(currency: String = "") -> [String] {
             var found: [String] = []
 
+            let code = currency.isEmpty ? "XXX" : currency
+            let money = Currency(code)
+
             func show(_ value: Decimal) -> String {
-                let figure = Currency.amount(value, in: currency.isEmpty ? "XXX" : currency)
+                let figure = Money(value, in: Currency(code)).decimalString
                 return currency.isEmpty ? figure : "\(currency) \(figure)"
             }
 
@@ -99,16 +103,15 @@ public struct FacturX: Sendable, Equatable {
             // customer adds up. A tax of 20% on 1234.56 is 246.912 and lands
             // on the page as 246.91; checking the unrounded figures would
             // report a disagreement nobody can see.
-            let code = currency.isEmpty ? "XXX" : currency
             func rounded(_ value: Decimal) -> Decimal {
-                Decimal(string: Currency.amount(value, in: code)) ?? value
+                Money(value, in: money).decimal
             }
 
             // One of the currency's own smallest units either way is
             // rounding — a rate applied per line legitimately lands there.
             // A penny of tolerance would be a hundred times too loose for
             // the yen and ten times too tight for the dinar.
-            let unit = Currency.smallestUnit(code)
+            let unit = Decimal(1) / Decimal(money.unitsPerMajor)
             let tolerance = unit + unit / 10
 
             let net = rounded(self.net), tax = rounded(self.tax)
@@ -359,7 +362,7 @@ enum FacturXWriter {
                 <ram:BasisAmount>\(amount(details.totals.net, in: currency))</ram:BasisAmount>
                 <ram:CategoryCode>\(category.code)</ram:CategoryCode>
         \(category.reason.isEmpty ? "" : "        <ram:ExemptionReason>\(escaped(category.reason))</ram:ExemptionReason>\n")\
-                <ram:RateApplicablePercent>\(Currency.amount(details.taxRate, in: "XXX"))</ram:RateApplicablePercent>
+                <ram:RateApplicablePercent>\(Money(details.taxRate, in: Currency("XXX")).decimalString)</ram:RateApplicablePercent>
               </ram:ApplicableTradeTax>
         """
 
@@ -439,8 +442,11 @@ enum FacturXWriter {
 
     /// The amount as its own currency writes it: the yen to no places, the
     /// dinar to three, everything ordinary to two.
+    ///
+    /// Through `Money`, which counts in the currency's smallest unit — so the
+    /// figure written here is the same integer the arithmetic used.
     private static func amount(_ value: Decimal, in code: String) -> String {
-        Currency.amount(value, in: code)
+        Money(value, in: Currency(code)).decimalString
     }
 
     private static func indented(_ block: String) -> String {

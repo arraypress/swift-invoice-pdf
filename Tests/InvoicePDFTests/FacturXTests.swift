@@ -9,6 +9,7 @@ import CoreGraphics
 import PDFKit
 import XCTest
 @testable import InvoicePDF
+import Money
 import TextPDF
 
 final class FacturXTests: XCTestCase {
@@ -385,15 +386,12 @@ extension FacturXTests {
         XCTAssertTrue(xml.contains("<ram:GrandTotalAmount>898.80</ram:GrandTotalAmount>"), xml)
     }
 
-    func testEveryPlaceCountIsKnown() {
-        XCTAssertEqual(Currency.places("JPY"), 0)
-        XCTAssertEqual(Currency.places("KRW"), 0)
-        XCTAssertEqual(Currency.places("GBP"), 2)
-        XCTAssertEqual(Currency.places("eur"), 2, "the code should not be case-sensitive")
-        XCTAssertEqual(Currency.places("KWD"), 3)
-        XCTAssertEqual(Currency.places("BHD"), 3)
-        XCTAssertEqual(Currency.places("CLF"), 4)
-        XCTAssertEqual(Currency.places("ZZZ"), 2, "anything unlisted is the common case")
+    func testTheCurrencysOwnPrecisionIsUsed() {
+        // The table lives in swift-money now, and is cross-checked against
+        // ICU there. What matters here is that the XML uses it.
+        XCTAssertEqual(Currency("JPY").decimals, 0)
+        XCTAssertEqual(Currency("KWD").decimals, 3)
+        XCTAssertEqual(Currency("GBP").decimals, 2)
     }
 
     func testAYenOfRoundingIsAllowedAndTenAreNot() {

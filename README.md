@@ -69,6 +69,32 @@ English always, and a second language beside it — the person reading the invoi
 
 **Not legal advice, and worth a professional's eye before you rely on it.** These are the standard formulations, which are published and formulaic — but a wrong phrase in a language you do not read is worse than an English one you do. [One example per language](Examples/wording).
 
+## Working the figures out
+
+Give the lines as money and everything follows from them — the page and the XML from the same integers, so they cannot disagree:
+
+```swift
+let sums = Totals(
+    lines: [
+        .init("Document generation licence", unitPrice: Money("149.00", in: .gbp)!),
+        .init("Template design and setup", quantity: 6, unitPrice: Money("70.00", in: .gbp)!),
+    ],
+    rate: 20,
+    currency: .gbp
+)
+
+sums.net      // £749.00
+sums.tax      // £149.80
+sums.gross    // £898.80
+
+Invoice(…, items: sums.items(), totals: sums.rows(), vatLines: sums.vatLines())
+try invoice.facturX(sums.facturX(issued: issuedDate))
+```
+
+Before this, an e-invoice made you write every figure twice — once as a string for the page and once as a number for the XML — with nothing checking that the two agreed. Now nobody writes them twice, so nothing can be written twice differently.
+
+Built on [swift-money](https://github.com/arraypress/swift-money), which counts in the currency's smallest unit and knows how many that is.
+
 ## Money, and how many decimals it has
 
 Every amount printed on the page is a string, so `¥1,234` and `€1.234,56` pass through exactly as written — formatting money means knowing a currency's separators and symbol placement, and that belongs where the money lives.
