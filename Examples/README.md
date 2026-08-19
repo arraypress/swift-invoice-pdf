@@ -52,6 +52,10 @@ The same reverse-charge invoice, each carrying the phrase and the citation its o
 - [royalty](statements/royalty.pdf) — earnings by source, with advance recoupment
 - [aged-debtors](statements/aged-debtors.pdf) · [aged-creditors](statements/aged-creditors.pdf) — landscape, bucketed
 
+## E-invoice
+
+- [factur-x](e-invoice/factur-x.pdf) — a PDF/A-3 with the invoice as XML inside it, and [the XML beside it](e-invoice/factur-x.xml) so you can read what a ledger reads
+
 ## Shipping
 
 - [commercialInvoice](shipping/commercialInvoice.pdf) — commodity codes, origin, Incoterm

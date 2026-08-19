@@ -32,7 +32,7 @@ A credit note that does not reference the invoice it reverses, or a self-billed 
 - 📄 **Multi-page** — headings repeat, footers know the total
 - ▦ **Payment codes** — an EPC code for a SEPA transfer, or any payload; drawn as vector, so it scans off a photocopy
 - 🇪🇺 **Factur-X / ZUGFeRD** — the invoice as XML inside a PDF/A-3, which is what an e-invoice is
-- 🪶 **One dependency** — the writer, which has none
+- 🪶 **Three small dependencies** — the writer, the money and the country table; the writer itself has none
 
 ## Scan to pay
 
@@ -174,7 +174,7 @@ One file, both halves, claiming PDF/A-3 and meeting it. There is [an example](Ex
 ## Installation
 
 ```swift
-.package(url: "https://github.com/arraypress/swift-invoice-pdf.git", from: "1.0.0")
+.package(url: "https://github.com/arraypress/swift-invoice-pdf.git", from: "0.1.0")
 ```
 
 ## Examples
@@ -261,6 +261,8 @@ A brand face drawn for a logo commonly has no `£` or `€`. Those runs fall bac
 ## Built on
 
 - [swift-text-pdf](https://github.com/arraypress/swift-text-pdf) — the writer: text flow, tables, curves, typefaces, images
+- [swift-money](https://github.com/arraypress/swift-money) — exact amounts, in the currency's smallest unit
+- [swift-countries](https://github.com/arraypress/swift-countries) — the country field an e-invoice cannot do without
 
 ## License
 
