@@ -61,6 +61,6 @@ The same reverse-charge invoice, each carrying the phrase and the citation its o
 - [commercialInvoice](shipping/commercialInvoice.pdf) — commodity codes, origin, Incoterm
 - [packingList](shipping/packingList.pdf) — the same consignment without the money
 
-## The same invoice, differently branded
+## The same invoice, branded and not
 
-[plain](branding/plain.pdf) · [navy](branding/navy.pdf) · [warm](branding/warm.pdf)
+[unbranded](branding/unbranded.pdf) · [branded](branding/branded.pdf) — a mark, an accent that lands in the logo, the name and the stamp, and a tagline under it

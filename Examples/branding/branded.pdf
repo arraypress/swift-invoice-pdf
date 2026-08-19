@@ -19,16 +19,35 @@ endobj
 <</Producer (arraypress/swift-text-pdf) /CreationDate (D:20260412132000Z)>>
 endobj
 7 0 obj
-<</Type /Page /Parent 2 0 R /Resources <</Font <</F1 3 0 R /F2 4 0 R /F3 5 0 R>>>> /Annots [<</Type /Annot /Subtype /Link /Rect [48.00 645.91 166.68 654.91] /Border [0 0 0] /F 4 /A <</Type /Action /S /URI /URI (mailto:payables@acmetrading.co.uk)>>>>] /Contents 8 0 R>>
+<</Type /Page /Parent 2 0 R /Resources <</Font <</F1 3 0 R /F2 4 0 R /F3 5 0 R>>>> /Annots [<</Type /Annot /Subtype /Link /Rect [48.00 633.91 166.68 642.91] /Border [0 0 0] /F 4 /A <</Type /Action /S /URI /URI (mailto:payables@acmetrading.co.uk)>>>>] /Contents 8 0 R>>
 endobj
 8 0 obj
-<</Length 3240>>
+<</Length 4021>>
 stream
 q
-0.478 0.290 0.169 rg
+0.122 0.227 0.373 rg
+1 0 0 1 48.00 759.89 cm
+3.400 3.400 m
+3.400 30.600 l
+10.200 30.600 l
+17.000 15.300 l
+23.800 30.600 l
+30.600 30.600 l
+30.600 3.400 l
+24.480 3.400 l
+24.480 21.080 l
+19.040 9.520 l
+14.960 9.520 l
+9.520 21.080 l
+9.520 3.400 l
+h
+f
+Q
+q
+0.122 0.227 0.373 rg
 BT
 /F2 15.00 Tf
-48.00 779.89 Td
+94.00 779.89 Td
 (MERIDIAN STUDIO LTD) Tj
 ET
 Q
@@ -36,7 +55,7 @@ q
 0.451 0.451 0.451 rg
 BT
 /F1 8.00 Tf
-48.00 766.89 Td
+94.00 766.89 Td
 (Design and engineering) Tj
 ET
 Q
@@ -60,15 +79,51 @@ Q
 q
 0.125 0.125 0.125 RG
 0.75 w
-48.00 727.89 m
-547.28 727.89 l
+506.17 731.89 m
+547.28 731.89 l
+S
+Q
+q
+0.125 0.125 0.125 RG
+0.75 w
+506.17 747.89 m
+547.28 747.89 l
+S
+Q
+q
+0.125 0.125 0.125 RG
+0.75 w
+506.17 731.89 m
+506.17 747.89 l
+S
+Q
+q
+0.125 0.125 0.125 RG
+0.75 w
+547.28 731.89 m
+547.28 747.89 l
+S
+Q
+q
+0.125 0.125 0.125 rg
+BT
+/F2 8.00 Tf
+517.17 737.02 Td
+(PAID) Tj
+ET
+Q
+q
+0.125 0.125 0.125 RG
+0.75 w
+48.00 715.89 m
+547.28 715.89 l
 S
 Q
 q
 0.451 0.451 0.451 rg
 BT
 /F2 7.00 Tf
-48.00 699.89 Td
+48.00 687.89 Td
 (BILLED TO) Tj
 ET
 Q
@@ -76,7 +131,7 @@ q
 0.125 0.125 0.125 rg
 BT
 /F2 11.00 Tf
-48.00 683.89 Td
+48.00 671.89 Td
 (Acme Trading Ltd) Tj
 ET
 Q
@@ -84,7 +139,7 @@ q
 0.451 0.451 0.451 rg
 BT
 /F1 9.00 Tf
-48.00 670.89 Td
+48.00 658.89 Td
 (Studio 4, 118 Brick Lane) Tj
 ET
 Q
@@ -92,7 +147,7 @@ q
 0.451 0.451 0.451 rg
 BT
 /F1 9.00 Tf
-48.00 659.39 Td
+48.00 647.39 Td
 (London E1 6RL) Tj
 ET
 Q
@@ -100,7 +155,7 @@ q
 0.451 0.451 0.451 rg
 BT
 /F1 9.00 Tf
-48.00 647.89 Td
+48.00 635.89 Td
 (payables@acmetrading.co.uk) Tj
 ET
 Q
@@ -108,7 +163,7 @@ q
 0.451 0.451 0.451 rg
 BT
 /F1 9.00 Tf
-48.00 636.39 Td
+48.00 624.39 Td
 (VAT GB 987 6543 21) Tj
 ET
 Q
@@ -116,7 +171,7 @@ q
 0.451 0.451 0.451 rg
 BT
 /F2 7.00 Tf
-317.64 699.89 Td
+317.64 687.89 Td
 (DETAILS) Tj
 ET
 Q
@@ -124,7 +179,7 @@ q
 0.451 0.451 0.451 rg
 BT
 /F1 9.00 Tf
-317.64 683.89 Td
+317.64 671.89 Td
 (Issued) Tj
 ET
 Q
@@ -132,7 +187,7 @@ q
 0.125 0.125 0.125 rg
 BT
 /F2 9.00 Tf
-494.24 683.89 Td
+494.24 671.89 Td
 (31 July 2026) Tj
 ET
 Q
@@ -140,7 +195,7 @@ q
 0.451 0.451 0.451 rg
 BT
 /F1 9.00 Tf
-317.64 670.89 Td
+317.64 658.89 Td
 (Due) Tj
 ET
 Q
@@ -148,7 +203,7 @@ q
 0.125 0.125 0.125 rg
 BT
 /F2 9.00 Tf
-481.26 670.89 Td
+481.26 658.89 Td
 (30 August 2026) Tj
 ET
 Q
@@ -156,7 +211,7 @@ q
 0.451 0.451 0.451 rg
 BT
 /F1 9.00 Tf
-317.64 657.89 Td
+317.64 645.89 Td
 (Date of supply) Tj
 ET
 Q
@@ -164,20 +219,20 @@ q
 0.125 0.125 0.125 rg
 BT
 /F2 9.00 Tf
-494.24 657.89 Td
+494.24 645.89 Td
 (31 July 2026) Tj
 ET
 Q
 q
 0.980 0.980 0.980 rg
-48.00 584.89 499.28 22.00 re
+48.00 572.89 499.28 22.00 re
 f
 Q
 q
 0.118 0.118 0.118 rg
 BT
 /F2 9.00 Tf
-48.00 592.66 Td
+48.00 580.66 Td
 (Description) Tj
 ET
 Q
@@ -185,7 +240,7 @@ q
 0.118 0.118 0.118 rg
 BT
 /F2 9.00 Tf
-315.10 592.66 Td
+315.10 580.66 Td
 (Qty) Tj
 ET
 Q
@@ -193,7 +248,7 @@ q
 0.118 0.118 0.118 rg
 BT
 /F2 9.00 Tf
-399.92 592.66 Td
+399.92 580.66 Td
 (Unit price) Tj
 ET
 Q
@@ -201,77 +256,77 @@ q
 0.118 0.118 0.118 rg
 BT
 /F2 9.00 Tf
-513.29 592.66 Td
+513.29 580.66 Td
 (Amount) Tj
 ET
 Q
 q
 0.235 0.235 0.235 RG
 0.75 w
-48.00 606.89 m
-547.28 606.89 l
+48.00 594.89 m
+547.28 594.89 l
 S
 Q
 q
 0.235 0.235 0.235 RG
 0.75 w
-48.00 584.89 m
-547.28 584.89 l
+48.00 572.89 m
+547.28 572.89 l
 S
 Q
 q
 BT
 /F1 9.00 Tf
-48.00 570.66 Td
+48.00 558.66 Td
 (Document generation licence — annual) Tj
 ET
 Q
 q
 BT
 /F1 9.00 Tf
-320.10 570.66 Td
+320.10 558.66 Td
 (1) Tj
 ET
 Q
 q
 BT
 /F1 9.00 Tf
-408.90 570.66 Td
+408.90 558.66 Td
 (£149.00) Tj
 ET
 Q
 q
 BT
 /F1 9.00 Tf
-514.75 570.66 Td
+514.75 558.66 Td
 (£149.00) Tj
 ET
 Q
 q
 BT
 /F1 9.00 Tf
-48.00 548.66 Td
+48.00 536.66 Td
 (Template design and setup) Tj
 ET
 Q
 q
 BT
 /F1 9.00 Tf
-320.10 548.66 Td
+320.10 536.66 Td
 (6) Tj
 ET
 Q
 q
 BT
 /F1 9.00 Tf
-413.90 548.66 Td
+413.90 536.66 Td
 (£70.00) Tj
 ET
 Q
 q
 BT
 /F1 9.00 Tf
-514.75 548.66 Td
+514.75 536.66 Td
 (£420.00) Tj
 ET
 Q
@@ -279,35 +334,35 @@ q
 0.451 0.451 0.451 rg
 BT
 /F1 7.50 Tf
-48.00 539.16 Td
+48.00 527.16 Td
 (Six hours, 12–13 July) Tj
 ET
 Q
 q
 BT
 /F1 9.00 Tf
-48.00 515.66 Td
+48.00 503.66 Td
 (Priority support — first year) Tj
 ET
 Q
 q
 BT
 /F1 9.00 Tf
-320.10 515.66 Td
+320.10 503.66 Td
 (1) Tj
 ET
 Q
 q
 BT
 /F1 9.00 Tf
-408.90 515.66 Td
+408.90 503.66 Td
 (£180.00) Tj
 ET
 Q
 q
 BT
 /F1 9.00 Tf
-514.75 515.66 Td
+514.75 503.66 Td
 (£180.00) Tj
 ET
 Q
@@ -315,7 +370,7 @@ q
 0.451 0.451 0.451 rg
 BT
 /F1 9.00 Tf
-337.58 486.87 Td
+337.58 474.87 Td
 (Subtotal) Tj
 ET
 Q
@@ -323,7 +378,7 @@ q
 0.125 0.125 0.125 rg
 BT
 /F1 9.00 Tf
-514.75 486.87 Td
+514.75 474.87 Td
 (£749.00) Tj
 ET
 Q
@@ -331,7 +386,7 @@ q
 0.451 0.451 0.451 rg
 BT
 /F1 9.00 Tf
-337.58 471.87 Td
+337.58 459.87 Td
 (VAT at 20%) Tj
 ET
 Q
@@ -339,22 +394,22 @@ q
 0.125 0.125 0.125 rg
 BT
 /F1 9.00 Tf
-514.75 471.87 Td
+514.75 459.87 Td
 (£149.80) Tj
 ET
 Q
 q
 0.125 0.125 0.125 RG
 1.00 w
-337.58 457.89 m
-547.28 457.89 l
+337.58 445.89 m
+547.28 445.89 l
 S
 Q
 q
 0.125 0.125 0.125 rg
 BT
 /F2 11.00 Tf
-337.58 437.89 Td
+337.58 425.89 Td
 (Total due) Tj
 ET
 Q
@@ -362,16 +417,31 @@ q
 0.125 0.125 0.125 rg
 BT
 /F2 14.00 Tf
-496.68 437.89 Td
+496.68 425.89 Td
 (£898.80) Tj
 ET
 Q
 q
 0.839 0.839 0.839 RG
 0.50 w
-337.58 425.89 m
-547.28 425.89 l
+337.58 413.89 m
+547.28 413.89 l
 S
+Q
+q
+0.839 0.839 0.839 RG
+0.50 w
+48.00 58.00 m
+547.28 58.00 l
+S
+Q
+q
+0.588 0.588 0.588 rg
+BT
+/F1 7.50 Tf
+48.00 46.00 Td
+(Meridian Studio Ltd is registered in England and Wales, no. 09182736.) Tj
+ET
 Q
 
 endstream
@@ -390,5 +460,5 @@ xref
 trailer
 <</Size 9 /Root 1 0 R /Info 6 0 R /ID [<408EFC240FB12E29A2BC524DCABEA55D> <408EFC240FB12E29A2BC524DCABEA55D>]>>
 startxref
-6890
+7671
 %%EOF

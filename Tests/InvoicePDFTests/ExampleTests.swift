@@ -451,19 +451,28 @@ final class ExampleTests: XCTestCase {
 
     // MARK: The look
 
-    func testTheSameInvoiceUnderDifferentBranding() throws {
-        let looks: [(String, Branding)] = [
-            ("plain", Branding(name: "Meridian Studio Ltd", address: Self.branding.address)),
-            // Named here rather than borrowed from the shared fixture: the
-            // flagship examples went monochrome, and this page is the one
-            // whose whole point is showing an accent.
-            ("navy", Branding(name: "Meridian Studio Ltd", tagline: "Design and engineering",
-                              accent: "#1F3A5F", address: Self.branding.address)),
-            ("warm", Branding(name: "Meridian Studio Ltd", tagline: "Design and engineering",
-                              accent: "#7A4A2B", address: Self.branding.address)),
+    /// A geometric M in a 100-unit box, for the branded example's mark.
+    ///
+    /// Straight lines only — the SVG converter has no arcs, and a monogram
+    /// made of strokes is what a small business's mark usually is.
+    private static let monogram =
+        "M 10 90 L 10 10 L 30 10 L 50 55 L 70 10 L 90 10 L 90 90 L 72 90 " +
+        "L 72 38 L 56 72 L 44 72 L 28 38 L 28 90 Z"
+
+    func testTheSameInvoiceBrandedAndNot() throws {
+        // Three accents differing in one line's ink taught nobody anything.
+        // Two pages that differ in everything branding can do teach the
+        // whole feature: the default against a mark, an accent that lands
+        // in the logo, the name and the stamp, and a tagline under it.
+        let looks: [(String, Branding, String)] = [
+            ("unbranded", Branding(name: "Meridian Studio Ltd", address: Self.branding.address), ""),
+            ("branded", Branding(name: "Meridian Studio Ltd", tagline: "Design and engineering",
+                                 accent: "#1F3A5F", logoPath: Self.monogram,
+                                 address: Self.branding.address,
+                                 footnotes: Self.branding.footnotes), "PAID"),
         ]
 
-        for (name, branding) in looks {
+        for (name, branding, status) in looks {
             let invoice = Invoice(
                 branding: branding,
                 number: "INV-2026-0042",
@@ -473,6 +482,7 @@ final class ExampleTests: XCTestCase {
                 totals: [("Subtotal", "£749.00"), ("VAT at 20%", "£149.80")],
                 total: [("Total due", "£898.80")],
                 details: [("Issued", "31 July 2026"), ("Due", "30 August 2026")],
+                status: status,
                 vatLines: [VatLine(rate: "20%", net: "£749.00", vat: "£149.80")],
                 supplyDate: "31 July 2026"
             )
