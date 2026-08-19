@@ -115,9 +115,9 @@ final class EveryCurrencyInvoiceTests: XCTestCase {
             let sums = totals(in: currency)
 
             let invoice = Invoice(
-                branding: Branding(name: "SwiftInvoices Ltd"),
+                branding: Branding(name: "Meridian Studio Ltd"),
                 number: "INV-2026-0091",
-                from: Party(name: "SwiftInvoices Ltd", address: ["71 Shelton Street"], taxID: "GB1"),
+                from: Party(name: "Meridian Studio Ltd", address: ["71 Shelton Street"], taxID: "GB1"),
                 to: Party(name: "Klangwerk GmbH", address: ["Oranienburger Str. 87"], taxID: "DE1"),
                 items: sums.items(in: locale),
                 totals: sums.rows(in: locale),
@@ -138,9 +138,9 @@ final class EveryCurrencyInvoiceTests: XCTestCase {
     private func eInvoice(in currency: Currency) throws -> Data {
         let sums = totals(in: currency)
         let invoice = Invoice(
-            branding: Branding(name: "SwiftInvoices Ltd"),
+            branding: Branding(name: "Meridian Studio Ltd"),
             number: "INV-2026-0092",
-            from: Party(name: "SwiftInvoices Ltd", address: ["71 Shelton Street"],
+            from: Party(name: "Meridian Studio Ltd", address: ["71 Shelton Street"],
                         taxID: "GB123456789", country: Country("GB")),
             to: Party(name: "Klangwerk GmbH", address: ["Oranienburger Str. 87"],
                       taxID: "DE811234567", country: Country("DE")),

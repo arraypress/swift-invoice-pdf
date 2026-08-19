@@ -222,10 +222,14 @@ public struct RoyaltyStatement: Sendable {
         let showsRate = lines.contains { !$0.rate.isEmpty }
 
         var headers = ["Source", "Title"]
-        var widths = [0.16, 0.26]
+        var widths = [0.13, 0.26]
         var right: Set<Int> = []
 
-        if showsQuantity { headers.append("Units"); widths.append(0.09); right.insert(headers.count - 1) }
+        // Units gets room for seven figures: a streaming quarter runs to the
+        // millions, and "1,204..." is a count gone missing from the one
+        // document whose point is showing the arithmetic. The width comes
+        // from Source, whose values have the most room to spare.
+        if showsQuantity { headers.append("Units"); widths.append(0.12); right.insert(headers.count - 1) }
         if showsGross { headers.append("Gross"); widths.append(0.12); right.insert(headers.count - 1) }
         if showsShare { headers.append("Distributor"); widths.append(0.12); right.insert(headers.count - 1) }
         headers.append("Net"); widths.append(0.12); right.insert(headers.count - 1)

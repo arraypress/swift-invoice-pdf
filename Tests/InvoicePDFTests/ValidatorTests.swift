@@ -37,9 +37,9 @@ final class ValidatorTests: XCTestCase {
         buyer: Country? = Country("DE")
     ) -> Invoice {
         Invoice(
-            branding: Branding(name: "SwiftInvoices Ltd"),
+            branding: Branding(name: "Meridian Studio Ltd"),
             number: "INV-2026-0042",
-            from: Party(name: "SwiftInvoices Ltd", address: ["71 Shelton Street", "London"],
+            from: Party(name: "Meridian Studio Ltd", address: ["71 Shelton Street", "London"],
                         taxID: "GB123456789", country: seller),
             to: Party(name: "Klangwerk GmbH", address: ["Oranienburger Str. 87", "Berlin"],
                       taxID: "DE811567890", country: buyer),

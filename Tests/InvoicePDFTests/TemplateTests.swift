@@ -428,7 +428,7 @@ extension TemplateTests {
 
     private func noticed() -> Invoice {
         Invoice(
-            branding: Branding(name: "SwiftInvoices Ltd"),
+            branding: Branding(name: "Meridian Studio Ltd"),
             number: "INV-1",
             from: Party(name: "S", address: ["1 Road"], taxID: "GB1"),
             to: Party(name: "B", address: ["2 Road"]),
@@ -505,7 +505,7 @@ extension TemplateTests {
     private func noticed(_ treatment: VatTreatment,
                          in language: VatTreatment.Wording?) -> Invoice {
         Invoice(
-            branding: Branding(name: "SwiftInvoices Ltd"), number: "INV-1",
+            branding: Branding(name: "Meridian Studio Ltd"), number: "INV-1",
             from: Party(name: "S", address: ["1 Road"], taxID: "GB1"),
             to: Party(name: "B", address: ["2 Road"], taxID: "DE1"),
             items: [LineItem(description: "Thing", amount: "€1,00")],

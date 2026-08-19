@@ -19,7 +19,7 @@
       <ram:ApplicableHeaderTradeAgreement>
         <ram:BuyerReference>PO-4471</ram:BuyerReference>
         <ram:SellerTradeParty>
-          <ram:Name>SwiftInvoices Ltd</ram:Name>
+          <ram:Name>Meridian Studio Ltd</ram:Name>
           <ram:PostalTradeAddress>
             <ram:LineOne>71–75 Shelton Street</ram:LineOne>
             <ram:LineTwo>London WC2H 9JQ</ram:LineTwo>

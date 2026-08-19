@@ -27,9 +27,9 @@ final class FacturXTests: XCTestCase {
     ) -> Invoice {
         Invoice(
             kind: kind,
-            branding: Branding(name: "SwiftInvoices Ltd"),
+            branding: Branding(name: "Meridian Studio Ltd"),
             number: number,
-            from: Party(name: "SwiftInvoices Ltd",
+            from: Party(name: "Meridian Studio Ltd",
                         address: ["71 Shelton Street", "London"], taxID: supplierVAT,
                         country: Country("GB")),
             to: Party(name: "Klangwerk GmbH",
@@ -323,9 +323,9 @@ final class FacturXTests: XCTestCase {
             URL(fileURLWithPath: "/System/Library/Fonts/Supplemental/Arial.ttf")), weight: .regular)
 
         let overseas = Invoice(
-            branding: Branding(name: "SwiftInvoices Ltd"),
+            branding: Branding(name: "Meridian Studio Ltd"),
             number: "INV-2026-0043",
-            from: Party(name: "SwiftInvoices Ltd", address: ["71 Shelton Street", "London"],
+            from: Party(name: "Meridian Studio Ltd", address: ["71 Shelton Street", "London"],
                         taxID: "GB123456789", country: Country("GB")),
             to: Party(name: "北京商贸有限公司", address: ["1 Jianguomen Ave", "Beijing"],
                       country: Country("CN")),

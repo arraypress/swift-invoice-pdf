@@ -58,20 +58,20 @@ final class ExampleTests: XCTestCase {
     // MARK: The parties
 
     private static let branding = Branding(
-        name: "SwiftInvoices Ltd",
-        tagline: "Business documents, generated",
+        name: "Meridian Studio Ltd",
+        tagline: "Design and engineering",
         // The default near-black. The flagship examples stay monochrome —
         // the loudest things on an invoice should be its title and its
         // total, not the vendor's name — and the branding examples are
         // where an accent colour shows itself off.
         address: ["71–75 Shelton Street", "London WC2H 9JQ", "United Kingdom"],
-        footnotes: ["SwiftInvoices Ltd is registered in England and Wales, no. 09182736."]
+        footnotes: ["Meridian Studio Ltd is registered in England and Wales, no. 09182736."]
     )
 
     private static let supplier = Party(
-        name: "SwiftInvoices Ltd",
+        name: "Meridian Studio Ltd",
         address: ["71–75 Shelton Street", "London WC2H 9JQ"],
-        email: "accounts@swiftinvoices.co.uk",
+        email: "accounts@meridianstudio.co.uk",
         taxID: "GB 123 4567 89",
         country: Country("GB")
     )
@@ -336,7 +336,7 @@ final class ExampleTests: XCTestCase {
         // A transposed IBAN digit is a payment that bounces a week later, and
         // a missing reference is one nobody can match to an invoice.
         let epc = try XCTUnwrap(PaymentCode.epc(
-            beneficiary: "SwiftInvoices Ltd",
+            beneficiary: "Meridian Studio Ltd",
             iban: "DE89 3704 0044 0532 0130 00",
             amount: 677.11,
             bic: "COBADEFFXXX",
@@ -383,7 +383,7 @@ final class ExampleTests: XCTestCase {
                 + "crossed with this notice.",
             vatLines: [VatLine(rate: "20%", net: "£749.00", vat: "£149.80")],
             supplyDate: "31 July 2026",
-            paymentCode: PaymentCode("https://pay.swiftinvoices.co.uk/INV-2026-0042",
+            paymentCode: PaymentCode("https://pay.meridianstudio.co.uk/INV-2026-0042",
                                      caption: "Pay online")
         )
 
@@ -453,13 +453,13 @@ final class ExampleTests: XCTestCase {
 
     func testTheSameInvoiceUnderDifferentBranding() throws {
         let looks: [(String, Branding)] = [
-            ("plain", Branding(name: "SwiftInvoices Ltd", address: Self.branding.address)),
+            ("plain", Branding(name: "Meridian Studio Ltd", address: Self.branding.address)),
             // Named here rather than borrowed from the shared fixture: the
             // flagship examples went monochrome, and this page is the one
             // whose whole point is showing an accent.
-            ("navy", Branding(name: "SwiftInvoices Ltd", tagline: "Business documents, generated",
+            ("navy", Branding(name: "Meridian Studio Ltd", tagline: "Design and engineering",
                               accent: "#1F3A5F", address: Self.branding.address)),
-            ("warm", Branding(name: "SwiftInvoices Ltd", tagline: "Business documents, generated",
+            ("warm", Branding(name: "Meridian Studio Ltd", tagline: "Design and engineering",
                               accent: "#7A4A2B", address: Self.branding.address)),
         ]
 

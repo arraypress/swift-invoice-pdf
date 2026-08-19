@@ -40,7 +40,7 @@ A transposed IBAN digit is a payment that bounces a week later; a missing refere
 
 ```swift
 let code = PaymentCode.epc(
-    beneficiary: "SwiftInvoices Ltd",
+    beneficiary: "Meridian Studio Ltd",
     iban: "DE89 3704 0044 0532 0130 00",
     amount: 677.11,
     reference: "INV-2026-0044"
@@ -242,7 +242,7 @@ Business documents default to Helvetica because paperwork is better for being un
 
 ```swift
 let branding = Branding(
-    name: "SwiftInvoices Ltd",
+    name: "Meridian Studio Ltd",
     typeface: TypefaceFiles(name: "Söhne", regular: regularPath, bold: boldPath)
 )
 try Invoice(branding: branding, …).save(to: url)

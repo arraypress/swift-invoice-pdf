@@ -418,9 +418,13 @@ public struct Invoice: Sendable {
         // Title, reference and status stack down the right edge. Each needs
         // its own band — overlaying them puts the stamp across the reference
         // number, which is the one thing a customer has to quote back.
-        pdf.textAt(kind.title, x: pdf.left(), y: top - 20, size: 26,
-                   font: .helveticaBold, color: branding.ink, align: .right, boxWidth: pdf.contentWidth())
-        pdf.textAt(number, x: pdf.left(), y: top - 36, size: 9.5,
+        // 22 with a little tracking rather than 26: the title is the page's
+        // label, not its headline — at 26 it shouted the brand name down, and
+        // the reading order should be brand, then title, then number.
+        pdf.textAt(kind.title, x: pdf.left(), y: top - 20, size: 22,
+                   font: .helveticaBold, color: branding.ink, align: .right,
+                   boxWidth: pdf.contentWidth(), tracking: 1)
+        pdf.textAt(number, x: pdf.left(), y: top - 34, size: 8,
                    font: .helvetica, color: branding.muted, align: .right, boxWidth: pdf.contentWidth())
 
         var ruleY = top - 66
@@ -518,35 +522,120 @@ public struct Invoice: Sendable {
     private func itemTable(_ pdf: Document) {
         guard !items.isEmpty else { return }
 
-        guard kind.showsMoney else {
-            let table = Table(headers: ["Description", "Qty"])
-            table.widths([0.85, 0.15]).align([1: .center]).rowHeight(22)
-            for item in items {
-                let description = item.note.isEmpty ? item.description : "\(item.description)   \(item.note)"
-                table.row([description, item.quantity])
-            }
-            table.draw(pdf, size: 9, headerFill: branding.wash)
-            return
-        }
-
         let hasUnit = items.contains { !$0.unitPrice.isEmpty }
 
-        let headers = hasUnit
-            ? ["Description", "Qty", "Unit price", "Amount"]
-            : ["Description", "Qty", "Amount"]
+        let headers: [String]
+        let fractions: [Double]
+        let aligns: [Int: Align]
 
-        let table = Table(headers: headers)
-        table.widths(hasUnit ? [0.50, 0.10, 0.20, 0.20] : [0.66, 0.14, 0.20])
-            .align(hasUnit ? [1: .center, 2: .right, 3: .right] : [1: .center, 2: .right])
-            .rowHeight(22)
-
-        for item in items {
-            let description = item.note.isEmpty ? item.description : "\(item.description)   \(item.note)"
-            table.row(hasUnit
-                ? [description, item.quantity, item.unitPrice, item.amount]
-                : [description, item.quantity, item.amount])
+        if !kind.showsMoney {
+            headers = ["Description", "Qty"]
+            fractions = [0.85, 0.15]
+            aligns = [1: .center]
+        } else if hasUnit {
+            headers = ["Description", "Qty", "Unit price", "Amount"]
+            fractions = [0.50, 0.10, 0.20, 0.20]
+            aligns = [1: .center, 2: .right, 3: .right]
+        } else {
+            headers = ["Description", "Qty", "Amount"]
+            fractions = [0.66, 0.14, 0.20]
+            aligns = [1: .center, 2: .right]
         }
-        table.draw(pdf, size: 9, headerFill: branding.wash)
+
+        let rows = items.map { item in
+            (cells: !kind.showsMoney
+                ? [item.description, item.quantity]
+                : hasUnit
+                    ? [item.description, item.quantity, item.unitPrice, item.amount]
+                    : [item.description, item.quantity, item.amount],
+             note: item.note)
+        }
+        itemGrid(pdf, headers: headers, fractions: fractions, aligns: aligns, rows: rows)
+    }
+
+    /// The item table, drawn by hand rather than through `Table`.
+    ///
+    /// `Table` sets one line per row, and a line's detail — hours, a date
+    /// range, a licence period — read as part of what was sold when it sat
+    /// inline after the description. It goes underneath instead, in the
+    /// quiet type a meta line gets. The grid itself matches `Table`'s
+    /// drawing — the same heights, rules and padding — so it sits beside
+    /// every other table in the family without looking like a cousin.
+    private func itemGrid(
+        _ pdf: Document,
+        headers: [String],
+        fractions: [Double],
+        aligns: [Int: Align],
+        rows: [(cells: [String], note: String)]
+    ) {
+        let size = 9.0
+        let height = 22.0
+        // What a note adds to its row, and where it hangs below the
+        // description's baseline.
+        let noteExtra = 11.0
+        let noteDrop = 9.5
+        let padding = 6.0
+        let widths = fractions.map { $0 * pdf.contentWidth() }
+
+        func line(_ cells: [String], font: Font, color: Color?) {
+            var x = pdf.left()
+            let y = pdf.cursor()
+            let last = cells.count - 1
+
+            for (index, cell) in cells.enumerated() {
+                let width = index < widths.count ? widths[index] : 0
+                guard width > 0 else { continue }
+
+                let leading = index == 0 ? 0 : padding
+                let trailing = index == last ? 0 : padding
+                let inner = width - leading - trailing
+
+                pdf.textAt(
+                    pdf.fit(cell, into: inner, size: size, font: font),
+                    x: x + leading,
+                    y: y - font.bandBaseline(bandHeight: height, size: size),
+                    size: size, font: font, color: color,
+                    align: aligns[index] ?? .left, boxWidth: inner
+                )
+                x += width
+            }
+        }
+
+        func header() {
+            pdf.rect(x: pdf.left(), y: pdf.cursor() - height,
+                     width: pdf.contentWidth(), height: height, color: branding.wash)
+            let top = pdf.cursor()
+            line(headers, font: .helveticaBold, color: .grey(30))
+            pdf.gap(height)
+            pdf.line(from: pdf.left(), top, to: pdf.right(), top, color: .grey(60), thickness: 0.75)
+            pdf.line(from: pdf.left(), pdf.cursor(), to: pdf.right(), pdf.cursor(),
+                     color: .grey(60), thickness: 0.75)
+        }
+
+        header()
+        for row in rows {
+            let tall = row.note.isEmpty ? height : height + noteExtra
+
+            // Break with the header repeated, exactly as `Table` does, or
+            // everything past page one is a column of unlabelled numbers.
+            if pdf.remaining() < tall + height {
+                pdf.pageBreak()
+                header()
+            }
+
+            let top = pdf.cursor()
+            line(row.cells, font: .helvetica, color: nil)
+
+            if !row.note.isEmpty {
+                let baseline = top - Font.helvetica.bandBaseline(bandHeight: height, size: size)
+                pdf.textAt(
+                    pdf.fit(row.note, into: widths[0], size: 7.5, font: .helvetica),
+                    x: pdf.left(), y: baseline - noteDrop,
+                    size: 7.5, font: .helvetica, color: branding.muted
+                )
+            }
+            pdf.move(to: top - tall)
+        }
     }
 
     /// Whether the per-rate breakdown earns its place on the page.

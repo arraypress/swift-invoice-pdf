@@ -25,9 +25,9 @@ final class TemplateReaderTests: XCTestCase {
 
     func testARenderedInvoiceOpensAndReads() throws {
         let invoice = Invoice(
-            branding: Branding(name: "SwiftInvoices Ltd", address: ["71-75 Shelton Street", "London WC2H 9JQ"]),
+            branding: Branding(name: "Meridian Studio Ltd", address: ["71-75 Shelton Street", "London WC2H 9JQ"]),
             number: "INV-2026-0042",
-            from: Party(name: "SwiftInvoices Ltd", address: ["71-75 Shelton Street"], taxID: "GB123456789"),
+            from: Party(name: "Meridian Studio Ltd", address: ["71-75 Shelton Street"], taxID: "GB123456789"),
             to: Party(name: "Acme Recordings Ltd", address: ["Studio 4, 118 Brick Lane"]),
             items: [LineItem(description: "Drum Kit Vol. 2", amount: "£149.00", unitPrice: "£149.00")],
             totals: [(label: "Subtotal", value: "£149.00")],

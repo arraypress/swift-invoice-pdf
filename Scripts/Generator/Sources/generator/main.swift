@@ -21,9 +21,9 @@ let out = URL(fileURLWithPath: CommandLine.arguments[1])
 let issued = Date(timeIntervalSince1970: 1_785_000_000)
 
 let seller = Party(
-    name: "SwiftInvoices Ltd",
+    name: "Meridian Studio Ltd",
     address: ["71–75 Shelton Street", "London WC2H 9JQ"],
-    email: "billing@swiftinvoices.example", taxID: "GB123456789",
+    email: "billing@meridianstudio.example", taxID: "GB123456789",
     country: Country("GB")
 )
 let buyer = Party(
@@ -56,7 +56,7 @@ for treatment in VatTreatment.allCases {
                 ("bare", "", nil),
             ] {
                 let invoice = Invoice(
-                    branding: Branding(name: "SwiftInvoices Ltd"),
+                    branding: Branding(name: "Meridian Studio Ltd"),
                     number: "INV-2026-0042", from: seller, to: buyer,
                     items: sums.items(), totals: sums.rows(),
                     total: [("Total due", sums.gross.formatted())],

@@ -82,9 +82,9 @@ final class TotalsTests: XCTestCase {
     func testTheWholeDocumentIsBuiltFromOneSetOfNumbers() throws {
         let sums = totals()
         let invoice = Invoice(
-            branding: Branding(name: "SwiftInvoices Ltd"),
+            branding: Branding(name: "Meridian Studio Ltd"),
             number: "INV-2026-0044",
-            from: Party(name: "SwiftInvoices Ltd", address: ["71 Shelton Street"], taxID: "GB1",
+            from: Party(name: "Meridian Studio Ltd", address: ["71 Shelton Street"], taxID: "GB1",
                         country: Country("GB")),
             to: Party(name: "Klangwerk GmbH", address: ["Oranienburger Str. 87"], taxID: "DE1",
                       country: Country("DE")),

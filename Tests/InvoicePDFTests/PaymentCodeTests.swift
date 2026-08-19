@@ -15,9 +15,9 @@ final class PaymentCodeTests: XCTestCase {
 
     private func invoice(code: PaymentCode?, notes: String = "Payment by bank transfer.") -> Invoice {
         Invoice(
-            branding: Branding(name: "SwiftInvoices Ltd"),
+            branding: Branding(name: "Meridian Studio Ltd"),
             number: "INV-2026-0044",
-            from: Party(name: "SwiftInvoices Ltd", address: ["71 Shelton Street"], taxID: "GB1"),
+            from: Party(name: "Meridian Studio Ltd", address: ["71 Shelton Street"], taxID: "GB1"),
             to: Party(name: "Klangwerk GmbH", address: ["Oranienburger Str. 87"]),
             items: [LineItem(description: "Licence", amount: "€149,00")],
             totals: [("Subtotal", "€149,00")],
@@ -46,7 +46,7 @@ final class PaymentCodeTests: XCTestCase {
 
     func testTheEPCPayloadIsTheSpecificationsShape() throws {
         let code = try XCTUnwrap(PaymentCode.epc(
-            beneficiary: "SwiftInvoices Ltd",
+            beneficiary: "Meridian Studio Ltd",
             iban: "DE89 3704 0044 0532 0130 00",
             amount: 898.80,
             bic: "COBADEFFXXX",
@@ -60,7 +60,7 @@ final class PaymentCodeTests: XCTestCase {
         XCTAssertEqual(lines[2], "1")
         XCTAssertEqual(lines[3], "SCT")
         XCTAssertEqual(lines[4], "COBADEFFXXX")
-        XCTAssertEqual(lines[5], "SwiftInvoices Ltd")
+        XCTAssertEqual(lines[5], "Meridian Studio Ltd")
         XCTAssertEqual(lines[6], "DE89370400440532013000", "the spaces should come out of the IBAN")
         XCTAssertEqual(lines[7], "EUR898.80")
         XCTAssertEqual(lines[10], "INV-2026-0044")
@@ -121,7 +121,7 @@ final class PaymentCodeTests: XCTestCase {
 
     func testItScansBackFromAPage() throws {
         let code = try XCTUnwrap(PaymentCode.epc(
-            beneficiary: "SwiftInvoices Ltd", iban: "DE89370400440532013000",
+            beneficiary: "Meridian Studio Ltd", iban: "DE89370400440532013000",
             amount: 898.80, reference: "INV-2026-0044"
         ))
 
@@ -136,7 +136,7 @@ final class PaymentCodeTests: XCTestCase {
         // The whole point: render the document, photograph it, get the
         // payment details back.
         let code = try XCTUnwrap(PaymentCode.epc(
-            beneficiary: "SwiftInvoices Ltd", iban: "DE89370400440532013000",
+            beneficiary: "Meridian Studio Ltd", iban: "DE89370400440532013000",
             amount: 149, reference: "INV-2026-0044"
         ))
 

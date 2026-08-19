@@ -28,7 +28,7 @@ enum Layout {
         branding: Branding,
         title: String,
         reference: String,
-        titleSize: Double = 24,
+        titleSize: Double = 22,
         extraDrop: Double = 0
     ) -> Double {
         let top = pdf.height() - 48
@@ -47,9 +47,10 @@ enum Layout {
         }
 
         pdf.textAt(title, x: pdf.left(), y: top - 20, size: titleSize,
-                   font: .helveticaBold, color: branding.ink, align: .right, boxWidth: pdf.contentWidth())
+                   font: .helveticaBold, color: branding.ink, align: .right,
+                   boxWidth: pdf.contentWidth(), tracking: 1)
         if !reference.isEmpty {
-            pdf.textAt(reference, x: pdf.left(), y: top - 36, size: 9.5,
+            pdf.textAt(reference, x: pdf.left(), y: top - 34, size: 8,
                        font: .helvetica, color: branding.muted, align: .right, boxWidth: pdf.contentWidth())
         }
 

@@ -188,9 +188,10 @@ public struct Statement: Sendable {
             pdf.textAt(branding.tagline, x: x, y: top - 27, size: 8, font: .helvetica, color: branding.muted)
         }
 
-        pdf.textAt("STATEMENT", x: pdf.left(), y: top - 20, size: 24,
-                   font: .helveticaBold, color: branding.ink, align: .right, boxWidth: pdf.contentWidth())
-        pdf.textAt(period, x: pdf.left(), y: top - 36, size: 9.5,
+        pdf.textAt("STATEMENT", x: pdf.left(), y: top - 20, size: 22,
+                   font: .helveticaBold, color: branding.ink, align: .right,
+                   boxWidth: pdf.contentWidth(), tracking: 1)
+        pdf.textAt(period, x: pdf.left(), y: top - 34, size: 8,
                    font: .helvetica, color: branding.muted, align: .right, boxWidth: pdf.contentWidth())
 
         pdf.move(to: top - 66)
