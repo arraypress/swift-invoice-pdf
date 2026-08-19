@@ -22,7 +22,7 @@ endobj
 <</Type /Page /Parent 2 0 R /Resources <</Font <</F1 3 0 R /F2 4 0 R /F3 5 0 R>>>> /Contents 8 0 R>>
 endobj
 8 0 obj
-<</Length 6372>>
+<</Length 6436>>
 stream
 q
 0.122 0.227 0.373 rg
@@ -620,51 +620,59 @@ q
 BT
 /F1 8.00 Tf
 48.00 228.65 Td
-(I declare that the information given above is true and complete, and that the goods described are of the origin shown.) Tj
+(I declare that the information given above is true and complete, and that the goods described are of) Tj
+ET
+Q
+q
+0.451 0.451 0.451 rg
+BT
+/F1 8.00 Tf
+48.00 217.65 Td
+(the origin shown.) Tj
 ET
 Q
 q
 0.839 0.839 0.839 RG
 0.50 w
-48.00 170.89 m
-198.43 170.89 l
+48.00 158.89 m
+198.43 158.89 l
 S
 Q
 q
 0.451 0.451 0.451 rg
 BT
 /F1 7.50 Tf
-48.00 158.89 Td
+48.00 146.89 Td
 (Signature) Tj
 ET
 Q
 q
 0.839 0.839 0.839 RG
 0.50 w
-222.43 170.89 m
-372.85 170.89 l
+222.43 158.89 m
+372.85 158.89 l
 S
 Q
 q
 0.451 0.451 0.451 rg
 BT
 /F1 7.50 Tf
-222.43 158.89 Td
+222.43 146.89 Td
 (Name and position) Tj
 ET
 Q
 q
 0.839 0.839 0.839 RG
 0.50 w
-396.85 170.89 m
-547.28 170.89 l
+396.85 158.89 m
+547.28 158.89 l
 S
 Q
 q
 0.451 0.451 0.451 rg
 BT
 /F1 7.50 Tf
-396.85 158.89 Td
+396.85 146.89 Td
 (Date) Tj
 ET
 Q
@@ -708,5 +716,5 @@ xref
 trailer
 <</Size 9 /Root 1 0 R /Info 6 0 R /ID [<408EFC240FB12E29A2BC524DCABEA55D> <408EFC240FB12E29A2BC524DCABEA55D>]>>
 startxref
-9843
+9907
 %%EOF

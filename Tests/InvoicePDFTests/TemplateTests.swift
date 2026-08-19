@@ -30,7 +30,7 @@ final class TemplateTests: XCTestCase {
 
     // MARK: Wrapped blocks
 
-    func testLongTextWrapsRatherThanRunningOffThePage() {
+    func testLongTextWrapsRatherThanRunningOffThePage() throws {
         let pdf = Document(size: .a4, margin: 48)
         let sentence = String(repeating: "The quick brown fox jumps over the lazy dog. ", count: 6)
 
@@ -41,23 +41,61 @@ final class TemplateTests: XCTestCase {
         XCTAssertEqual(height, pdf.blockHeight(sentence, size: 9, width: 200, leading: 12), accuracy: 0.01)
     }
 
-    func testBlockRespectsExplicitLineBreaks() {
+    func testBlockRespectsExplicitLineBreaks() throws {
         let pdf = Document(size: .a4, margin: 48)
         let two = pdf.blockHeight("one\ntwo", size: 9, width: 400, leading: 12)
         let one = pdf.blockHeight("one", size: 9, width: 400, leading: 12)
         XCTAssertEqual(two, one * 2, accuracy: 0.01)
     }
 
-    func testBlockAdvancesTheCursorByWhatItDrew() {
+    func testBlockAdvancesTheCursorByWhatItDrew() throws {
         let pdf = Document(size: .a4, margin: 48)
         let before = pdf.cursor()
         let height = pdf.block("A short line", x: pdf.left(), width: 400, size: 9, leading: 12)
         XCTAssertEqual(pdf.cursor(), before - height, accuracy: 0.01)
     }
 
+    // MARK: Page flow
+
+    func testGrowingAnInvoiceNeverHandsAPageBack() throws {
+        // The regression this guards: when the VAT breakdown table broke to a
+        // new page, the cursor was clamped back to where the *old* page
+        // stopped — dragging it to the bottom of the fresh page, so the
+        // totals and notes arrived a page late below most of a page of
+        // nothing. Content only ever moves down, so adding a line item can
+        // add a page but can never remove one; the bug showed up as exactly
+        // that dip, at the row counts where the breakdown straddled a break.
+        let wire = "Payment within 30 days by bank transfer to the account below. "
+            + "Please quote the invoice number on the transfer, or the payment "
+            + "cannot be matched and will sit unallocated until somebody writes "
+            + "to ask about it, which helps neither of us. "
+            + "Account: ArrayPress Ltd, 04-00-04 12345678."
+
+        var previous = 0
+        for count in 1...60 {
+            let invoice = Invoice(
+                branding: brand,
+                number: "INV-\(count)",
+                from: Party(name: "ArrayPress Ltd", address: ["71 Shelton Street"], taxID: "GB1"),
+                to: Party(name: "Kestrel GmbH", address: ["Frankfurt"]),
+                items: (1...count).map { LineItem(description: "Line \($0)", amount: "£10.00") },
+                totals: [("Subtotal", "£\(count * 10).00")],
+                total: [("Total due", "£\(count * 12).00")],
+                notes: wire,
+                vatLines: (1...5).map { VatLine(rate: "\($0)%", net: "£10.00", vat: "£0.50") },
+                supplyDate: "1 Aug 2026"
+            )
+
+            let pages = try invoice.render().pageCount()
+            XCTAssertGreaterThanOrEqual(pages, previous,
+                                        "page count fell from \(previous) at \(count) line items")
+            previous = pages
+        }
+    }
+
     // MARK: Tables
 
-    func testTotalRowIsDrawnWithTheSameColumns() {
+    func testTotalRowIsDrawnWithTheSameColumns() throws {
         let pdf = Document(size: .a4, margin: 48)
         let table = Table(headers: ["Account", "Current", "Total"])
         table.widths([0.5, 0.25, 0.25]).align([1: .right, 2: .right])
@@ -73,14 +111,14 @@ final class TemplateTests: XCTestCase {
 
     // MARK: Timesheet
 
-    func testTimesheetDropsMoneyColumnsWhenNothingIsCharged() {
+    func testTimesheetDropsMoneyColumnsWhenNothingIsCharged() throws {
         let internalSheet = Timesheet(
             branding: brand,
             worker: Party(name: "Daniel Okafor"),
             period: "July 2026",
             entries: [TimeEntry(date: "02 Jul", description: "Library maintenance", hours: "4.0", nonBillable: true)]
         )
-        let rendered = text(of: internalSheet.render())
+        let rendered = text(of: try internalSheet.render())
 
         // Empty rate and amount columns on an internal sheet invite someone to
         // fill them in, so they are not drawn at all.
@@ -89,19 +127,19 @@ final class TemplateTests: XCTestCase {
         XCTAssertTrue(rendered.contains("(Hours) Tj"))
     }
 
-    func testTimesheetKeepsMoneyColumnsWhenTimeIsCharged() {
+    func testTimesheetKeepsMoneyColumnsWhenTimeIsCharged() throws {
         let billed = Timesheet(
             branding: brand,
             worker: Party(name: "Daniel Okafor"),
             period: "July 2026",
             entries: [TimeEntry(date: "02 Jul", description: "Foley", hours: "6.5", rate: "£65.00", amount: "£422.50")]
         )
-        let rendered = text(of: billed.render())
+        let rendered = text(of: try billed.render())
         XCTAssertTrue(rendered.contains("(Rate) Tj"))
         XCTAssertTrue(rendered.contains("(Amount) Tj"))
     }
 
-    func testNonBillableTimeIsMarkedInTheTextNotOnlyByColour() {
+    func testNonBillableTimeIsMarkedInTheTextNotOnlyByColour() throws {
         let sheet = Timesheet(
             branding: brand,
             worker: Party(name: "Daniel Okafor"),
@@ -109,25 +147,25 @@ final class TemplateTests: XCTestCase {
             entries: [TimeEntry(date: "02 Jul", description: "Library maintenance", hours: "4.0", nonBillable: true)]
         )
         // It has to survive a photocopy.
-        XCTAssertTrue(text(of: sheet.render()).contains("non-billable"))
+        XCTAssertTrue(text(of: try sheet.render()).contains("non-billable"))
     }
 
     // MARK: Royalty statement
 
-    func testRoyaltyStatementDropsColumnsNobodyFilledIn() {
+    func testRoyaltyStatementDropsColumnsNobodyFilledIn() throws {
         let commission = RoyaltyStatement(
             branding: brand,
             payee: Party(name: "Mireille Fontaine"),
             period: "July 2026",
             lines: [RoyaltyLine(source: "Direct", title: "Tape Textures", net: "£143.00", earned: "£100.10")]
         )
-        let rendered = text(of: commission.render())
+        let rendered = text(of: try commission.render())
         XCTAssertFalse(rendered.contains("(Gross) Tj"))
         XCTAssertFalse(rendered.contains("(Distributor) Tj"))
         XCTAssertTrue(rendered.contains("(Earnings) Tj"))
     }
 
-    func testRoyaltyStatementShowsTheWholeChainWhenGiven() {
+    func testRoyaltyStatementShowsTheWholeChainWhenGiven() throws {
         let full = RoyaltyStatement(
             branding: brand,
             payee: Party(name: "Mireille Fontaine"),
@@ -138,13 +176,13 @@ final class TemplateTests: XCTestCase {
                             net: "£1,605.00", rate: "50%", earned: "£802.50"),
             ]
         )
-        let rendered = text(of: full.render())
+        let rendered = text(of: try full.render())
         for column in ["Gross", "Distributor", "Net", "Share", "Earnings", "Units"] {
             XCTAssertTrue(rendered.contains("(\(column)) Tj"), "missing the \(column) column")
         }
     }
 
-    func testCarriedForwardReasonIsPrintedOnTheDocument() {
+    func testCarriedForwardReasonIsPrintedOnTheDocument() throws {
         let unrecouped = RoyaltyStatement(
             branding: brand,
             payee: Party(name: "Mireille Fontaine"),
@@ -155,19 +193,19 @@ final class TemplateTests: XCTestCase {
         )
         // Earnings but no payment reads as a withholding unless the document
         // says otherwise, so the reason cannot live in a covering email.
-        XCTAssertTrue(text(of: unrecouped.render()).contains("not yet recouped"))
+        XCTAssertTrue(text(of: try unrecouped.render()).contains("not yet recouped"))
     }
 
     // MARK: Aged debtors
 
-    func testShortDebtorRowIsPaddedRatherThanShiftingColumns() {
+    func testShortDebtorRowIsPaddedRatherThanShiftingColumns() throws {
         let report = AgedAnalysis(
             branding: brand,
             asAt: "31 July 2026",
             buckets: ["Current", "31–60", "61–90", "90+"],
             rows: [DebtorRow(account: "Northwind", amounts: ["£100.00"], total: "£100.00")]
         )
-        let rendered = text(of: report.render())
+        let rendered = text(of: try report.render())
 
         // With only one amount given, the figure must stay under Current and
         // the total under Total — not slide left into the wrong bucket.
@@ -175,24 +213,24 @@ final class TemplateTests: XCTestCase {
         XCTAssertEqual(rendered.components(separatedBy: "(\u{A3}100.00) Tj").count - 1, 2)
     }
 
-    func testOverlongDebtorRowIsCutToTheBuckets() {
+    func testOverlongDebtorRowIsCutToTheBuckets() throws {
         let report = AgedAnalysis(
             branding: brand,
             asAt: "31 July 2026",
             buckets: ["Current", "90+"],
             rows: [DebtorRow(account: "Northwind", amounts: ["£1.00", "£2.00", "£3.00", "£4.00"], total: "£10.00")]
         )
-        let rendered = text(of: report.render())
+        let rendered = text(of: try report.render())
         XCTAssertFalse(rendered.contains("(\u{A3}4.00) Tj"), "a figure with no column should not be drawn")
     }
 
-    func testCreditorsIsTheSameReportRunTheOtherWay() {
+    func testCreditorsIsTheSameReportRunTheOtherWay() throws {
         let owed = AgedAnalysis(
             branding: brand, kind: .creditors, asAt: "31 July 2026",
             buckets: ["Current", "90+"],
             rows: [DebtorRow(account: "Kestrel Audio", amounts: ["£500.00", ""], total: "£500.00")]
         )
-        let rendered = text(of: owed.render())
+        let rendered = text(of: try owed.render())
 
         XCTAssertTrue(rendered.contains("(AGED CREDITORS) Tj"))
         // A creditors report lists suppliers; calling the column "Account"
@@ -201,12 +239,12 @@ final class TemplateTests: XCTestCase {
         XCTAssertFalse(rendered.contains("(AGED DEBTORS) Tj"))
     }
 
-    func testDebtorsRemainsTheDefault() {
+    func testDebtorsRemainsTheDefault() throws {
         let owing = AgedAnalysis(
             branding: brand, asAt: "31 July 2026", buckets: ["Current"],
             rows: [DebtorRow(account: "Northwind", amounts: ["£1.00"], total: "£1.00")]
         )
-        let rendered = text(of: owing.render())
+        let rendered = text(of: try owing.render())
         XCTAssertTrue(rendered.contains("(AGED DEBTORS) Tj"))
         XCTAssertTrue(rendered.contains("(Account) Tj"))
     }
@@ -227,7 +265,7 @@ final class TemplateTests: XCTestCase {
         )]
     }
 
-    func testPackingListCarriesNoPrices() {
+    func testPackingListCarriesNoPrices() throws {
         let list = Consignment(
             branding: brand, kind: .packingList, number: "PL-1", date: "11 August 2026",
             exporter: Party(name: "ArrayPress Ltd", address: ["London"]),
@@ -235,7 +273,7 @@ final class TemplateTests: XCTestCase {
             items: goods,
             value: [("Total value", "£3,520.00")]
         )
-        let rendered = text(of: list.render())
+        let rendered = text(of: try list.render())
 
         // Not a formatting choice: the list is handled by people who should
         // not be reading the seller's prices.
@@ -244,7 +282,7 @@ final class TemplateTests: XCTestCase {
         XCTAssertTrue(rendered.contains("(Gross) Tj"))
     }
 
-    func testCommercialInvoiceCarriesPricesAndTheDeclaration() {
+    func testCommercialInvoiceCarriesPricesAndTheDeclaration() throws {
         let invoice = Consignment(
             branding: brand, kind: .commercialInvoice, number: "CI-1", date: "11 August 2026",
             exporter: Party(name: "ArrayPress Ltd", address: ["London"]),
@@ -253,13 +291,33 @@ final class TemplateTests: XCTestCase {
             incoterm: "DAP Duisburg (Incoterms 2020)",
             value: [("Total value", "£3,520.00")]
         )
-        let rendered = text(of: invoice.render())
+        let rendered = text(of: try invoice.render())
         XCTAssertTrue(rendered.contains("3,520.00"))
         XCTAssertTrue(rendered.contains("I declare"))
         XCTAssertTrue(rendered.contains("(Signature) Tj"))
     }
 
-    func testPackageNumbersAreDrawnWhenGiven() {
+    func testTheDeclarationWrapsRatherThanRunningIntoTheMargin() throws {
+        // Drawn with `cell` it went out as one line — about 435 points of
+        // sentence against a 359-point box — because a cell aligns within its
+        // box and draws past it. A sentence wraps.
+        let invoice = Consignment(
+            branding: brand, kind: .commercialInvoice, number: "CI-2",
+            exporter: Party(name: "ArrayPress Ltd", address: ["London"]),
+            consignee: Party(name: "Kestrel GmbH", address: ["Frankfurt"]),
+            items: goods,
+            value: [("Total value", "£3,520.00")]
+        )
+        let document = try invoice.render()
+
+        let sentence = ShippingDocument.commercialInvoice.declaration
+        XCTAssertFalse(document.drawnText.contains(sentence),
+                       "the whole declaration went out as a single unwrapped line")
+        XCTAssertTrue(document.drawnText.joined(separator: " ").contains(sentence),
+                      "wrapping must not lose any of the wording")
+    }
+
+    func testPackageNumbersAreDrawnWhenGiven() throws {
         let list = Consignment(
             branding: brand, kind: .packingList, number: "PL-1",
             exporter: Party(name: "ArrayPress Ltd"),
@@ -268,13 +326,13 @@ final class TemplateTests: XCTestCase {
         )
         // Naming the column and then dropping every value shifted the whole
         // row one place left, which put commodity codes under Pkg.
-        let rendered = text(of: list.render())
+        let rendered = text(of: try list.render())
         XCTAssertTrue(rendered.contains("(Pkg) Tj"))
         XCTAssertTrue(rendered.contains("(1 of 3) Tj"))
         XCTAssertTrue(rendered.contains("(8519.81) Tj"))
     }
 
-    func testCountryOfOriginIsNotTruncated() {
+    func testCountryOfOriginIsNotTruncated() throws {
         let invoice = Consignment(
             branding: brand, kind: .commercialInvoice, number: "CI-1",
             exporter: Party(name: "ArrayPress Ltd"),
@@ -288,10 +346,10 @@ final class TemplateTests: XCTestCase {
         )
         // An origin cut to "Unite..." is the difference between goods clearing
         // and goods being held.
-        XCTAssertTrue(text(of: invoice.render()).contains("(United Kingdom) Tj"))
+        XCTAssertTrue(text(of: try invoice.render()).contains("(United Kingdom) Tj"))
     }
 
-    func testConsignmentNamesTheParticularsItIsMissing() {
+    func testConsignmentNamesTheParticularsItIsMissing() throws {
         let bare = Consignment(
             branding: brand, kind: .commercialInvoice, number: "",
             exporter: Party(name: "ArrayPress Ltd"),
@@ -307,7 +365,7 @@ final class TemplateTests: XCTestCase {
         XCTAssertTrue(warnings.contains("reason for export"))
     }
 
-    func testPackingListIsNotAskedForPrices() {
+    func testPackingListIsNotAskedForPrices() throws {
         let list = Consignment(
             branding: brand, kind: .packingList, number: "PL-1", date: "11 August 2026",
             exporter: Party(name: "ArrayPress Ltd", address: ["London"]),
@@ -324,15 +382,15 @@ final class TemplateTests: XCTestCase {
 
     // MARK: Every template
 
-    func testEveryTemplateProducesAReadableFile() {
+    func testEveryTemplateProducesAReadableFile() throws {
         let documents: [Document] = [
-            Timesheet(branding: brand, worker: Party(name: "A"), period: "July",
+            try Timesheet(branding: brand, worker: Party(name: "A"), period: "July",
                       entries: [TimeEntry(date: "1", description: "x", hours: "1")]).render(),
-            RoyaltyStatement(branding: brand, payee: Party(name: "B"), period: "July",
+            try RoyaltyStatement(branding: brand, payee: Party(name: "B"), period: "July",
                              lines: [RoyaltyLine(source: "S", title: "T", net: "£1", earned: "£1")]).render(),
-            AgedAnalysis(branding: brand, asAt: "31 July", buckets: ["Current"],
+            try AgedAnalysis(branding: brand, asAt: "31 July", buckets: ["Current"],
                         rows: [DebtorRow(account: "C", amounts: ["£1"], total: "£1")]).render(),
-            Consignment(branding: brand, number: "1", exporter: Party(name: "D"),
+            try Consignment(branding: brand, number: "1", exporter: Party(name: "D"),
                         consignee: Party(name: "E"), items: [ConsignmentItem(description: "F")]).render(),
         ]
 
@@ -385,7 +443,7 @@ extension TemplateTests {
     func testTheNoticeIsAClosedBox() throws {
         // It was drawn on three sides, which reads as a box somebody forgot
         // to finish rather than as a box.
-        let document = noticed().render()
+        let document = try noticed().render()
         let drawn = try segments(document.render())
 
         let left = document.left(), right = document.right()
@@ -400,7 +458,7 @@ extension TemplateTests {
     func testTheNoticeSitsInTheMiddleOfItsOwnRule() throws {
         // The version this replaced left sixteen points of air above the text
         // and four below it, so the block sat visibly high in its own rule.
-        let document = noticed().render()
+        let document = try noticed().render()
         let data = document.render()
         let raw = try XCTUnwrap(String(data: data, encoding: .isoLatin1))
 
@@ -459,7 +517,7 @@ extension TemplateTests {
     func testTheEnglishIsAlwaysThere() throws {
         for language in VatTreatment.Wording.allCases {
             let text = try XCTUnwrap(
-                PDFDocument(data: noticed(.reverseCharge, in: language).render().render())?.string
+                PDFDocument(data: try noticed(.reverseCharge, in: language).render().render())?.string
             )
             XCTAssertTrue(text.contains("Reverse charge"), language.rawValue)
         }
@@ -476,7 +534,7 @@ extension TemplateTests {
 
         for (language, phrase) in expected {
             let text = try XCTUnwrap(
-                PDFDocument(data: noticed(.reverseCharge, in: language).render().render())?.string
+                PDFDocument(data: try noticed(.reverseCharge, in: language).render().render())?.string
             )
             XCTAssertTrue(text.contains(phrase), "\(language.rawValue) did not say \(phrase)")
         }
@@ -526,7 +584,7 @@ extension TemplateTests {
 
     func testNoLanguageMeansEnglishAlone() throws {
         let text = try XCTUnwrap(
-            PDFDocument(data: noticed(.reverseCharge, in: nil).render().render())?.string
+            PDFDocument(data: try noticed(.reverseCharge, in: nil).render().render())?.string
         )
         XCTAssertTrue(text.contains("Reverse charge"))
         XCTAssertFalse(text.contains("Autoliquidation"))

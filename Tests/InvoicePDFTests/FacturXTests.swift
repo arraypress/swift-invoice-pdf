@@ -105,6 +105,35 @@ final class FacturXTests: XCTestCase {
         XCTAssertTrue(basic.contains("urn:factur-x.eu:1p0:basicwl"))
     }
 
+    func testARateWithThreeDecimalsSurvives() throws {
+        // 8.875 went through Money in a two-decimal pseudo-currency and came
+        // out 8.88 — a rate silently altered on a tax document. A rate is not
+        // an amount; it is written exactly.
+        let xml = try text(try invoice().facturX(details(rate: 8.875)))
+        XCTAssertTrue(xml.contains("<ram:RateApplicablePercent>8.875</ram:RateApplicablePercent>"), xml)
+    }
+
+    func testAnOrdinaryRateKeepsItsTwoPlaces() throws {
+        // What the validators saw: 20 written 20.00.
+        let xml = try text(try invoice().facturX(details()))
+        XCTAssertTrue(xml.contains("<ram:RateApplicablePercent>20.00</ram:RateApplicablePercent>"), xml)
+    }
+
+    func testNoBuyerReferenceMeansNoElement() throws {
+        // BT-10 is optional; an empty element is the one form that satisfies
+        // neither reading, and some validators flag "present but empty"
+        // louder than absent.
+        let bare = FacturX(currency: "GBP", issued: issued,
+                           totals: .init(net: 749, tax: 149.80, gross: 898.80), taxRate: 20)
+        let xml = try text(try invoice().facturX(bare))
+
+        XCTAssertFalse(xml.contains("<ram:BuyerReference"), xml)
+        XCTAssertTrue(XMLParser(data: Data(xml.utf8)).parse(), "omitting it broke the XML")
+
+        let referenced = try text(try invoice().facturX(details()))
+        XCTAssertTrue(referenced.contains("<ram:BuyerReference>PO-4471</ram:BuyerReference>"))
+    }
+
     func testMarkupInANameIsEscaped() throws {
         var party = invoice()
         let hostile = Invoice(
@@ -273,8 +302,47 @@ final class FacturXTests: XCTestCase {
         let raw = try XCTUnwrap(String(data: data, encoding: .isoLatin1))
         XCTAssertTrue(raw.hasPrefix("%PDF-1.7"))
         XCTAssertTrue(raw.contains("<pdfaid:part>3</pdfaid:part>"))
-        XCTAssertTrue(raw.contains("/AFRelationship /Alternative"))
+        // `Data`, not `Alternative`: the specification keys this to the
+        // profile, and Minimum and Basic WL — the two this library writes —
+        // carry only part of the invoice, so their XML is not an alternative
+        // representation of the page. `Alternative` belongs to Basic and up,
+        // and a Factur-X validator checks which is which.
+        XCTAssertTrue(raw.contains("/AFRelationship /Data"))
+        XCTAssertFalse(raw.contains("/AFRelationship /Alternative"))
         XCTAssertTrue(raw.contains("GTS_PDFA1"))
+    }
+
+    func testANameTheFamilyCannotDrawRefusesToClaimConformance() throws {
+        // Arial has no CJK. The name falls back to the reader's Helvetica —
+        // a font the file does not carry — and the page shows question marks.
+        // Either alone disqualifies the PDF/A claim, so the render is refused
+        // rather than shipped: a file that fails the standard it claims is
+        // rejected days later, against your name.
+        var latin = FontFamily(name: "Arial")
+        latin.add(try EmbeddedFont.load(
+            URL(fileURLWithPath: "/System/Library/Fonts/Supplemental/Arial.ttf")), weight: .regular)
+
+        let overseas = Invoice(
+            branding: Branding(name: "SwiftInvoices Ltd"),
+            number: "INV-2026-0043",
+            from: Party(name: "SwiftInvoices Ltd", address: ["71 Shelton Street", "London"],
+                        taxID: "GB123456789", country: Country("GB")),
+            to: Party(name: "北京商贸有限公司", address: ["1 Jianguomen Ave", "Beijing"],
+                      country: Country("CN")),
+            items: [LineItem(description: "Licence", amount: "£749.00")],
+            totals: [("Subtotal", "£749.00")],
+            supplyDate: "31 July 2026"
+        )
+
+        XCTAssertThrowsError(
+            try overseas.facturXDocument(details(), in: latin, creationDate: issued)
+        ) { error in
+            guard case Invoice.FacturXError.notConforming(let problems) = error else {
+                return XCTFail("wrong error: \(error)")
+            }
+            XCTAssertFalse(problems.isEmpty)
+            XCTAssertTrue("\(error)".contains("PDF/A"), "\(error)")
+        }
     }
 
     func testTheAttachmentIsNamedExactlyWhatReadersLookFor() throws {
@@ -283,6 +351,30 @@ final class FacturXTests: XCTestCase {
 
         // Factur-X readers look for this filename, exactly.
         XCTAssertTrue(raw.contains("/F (factur-x.xml)"), "the filename is not the one readers open")
+    }
+
+    func testTheFacturXMetadataTravelsInThePacket() throws {
+        // PDF/A forbids XMP properties the file does not declare a schema
+        // for, and a Factur-X validator reads the conformance level from the
+        // packet rather than from the XML — without both halves the file
+        // fails as Factur-X however sound its PDF/A is. The packet is
+        // written uncompressed, so the bytes are searchable as text.
+        let minimum = try invoice().facturXDocument(details(), in: try family(),
+                                                    creationDate: issued)
+        let raw = try XCTUnwrap(String(data: minimum, encoding: .isoLatin1))
+
+        XCTAssertTrue(raw.contains("<pdfaSchema:prefix>fx</pdfaSchema:prefix>"),
+                      "no extension schema declaring fx:")
+        XCTAssertTrue(raw.contains("<fx:DocumentFileName>factur-x.xml</fx:DocumentFileName>"))
+        XCTAssertTrue(raw.contains("<fx:DocumentType>INVOICE</fx:DocumentType>"))
+        XCTAssertTrue(raw.contains("<fx:ConformanceLevel>MINIMUM</fx:ConformanceLevel>"),
+                      "the conformance level did not reach the packet")
+
+        let basic = try invoice().facturXDocument(details(profile: .basicWithoutLines),
+                                                  in: try family(), creationDate: issued)
+        let basicRaw = try XCTUnwrap(String(data: basic, encoding: .isoLatin1))
+        XCTAssertTrue(basicRaw.contains("<fx:ConformanceLevel>BASIC WL</fx:ConformanceLevel>"),
+                      "the level must follow the profile")
     }
 
     func testTheSameInvoiceTwiceIsTheSameFile() throws {

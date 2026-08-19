@@ -93,6 +93,32 @@ final class PaymentCodeTests: XCTestCase {
         XCTAssertNil(PaymentCode.epc(beneficiary: "A", iban: iban, amount: -5), "a negative payment")
     }
 
+    func testTheAmountBoundsApplyToWhatIsWritten() {
+        // The bounds are checked after rounding, because rounding is what the
+        // payload carries: 999999999.999 slipped under a pre-rounding cap and
+        // came out EUR1000000000.00 — a cent over what the specification
+        // allows — and 0.004 was a positive amount that rounded to a payment
+        // of nothing.
+        let iban = "DE89370400440532013000"
+
+        XCTAssertNil(PaymentCode.epc(beneficiary: "A", iban: iban, amount: Decimal(string: "999999999.999")!),
+                     "over the ceiling once rounded")
+        XCTAssertNil(PaymentCode.epc(beneficiary: "A", iban: iban, amount: Decimal(string: "0.004")!),
+                     "rounds to a payment of nothing")
+
+        // The edges themselves are payments.
+        XCTAssertEqual(
+            PaymentCode.epc(beneficiary: "A", iban: iban, amount: Decimal(string: "999999999.99")!)?
+                .payload.components(separatedBy: "\n")[7],
+            "EUR999999999.99"
+        )
+        XCTAssertEqual(
+            PaymentCode.epc(beneficiary: "A", iban: iban, amount: Decimal(string: "0.01")!)?
+                .payload.components(separatedBy: "\n")[7],
+            "EUR0.01"
+        )
+    }
+
     func testItScansBackFromAPage() throws {
         let code = try XCTUnwrap(PaymentCode.epc(
             beneficiary: "SwiftInvoices Ltd", iban: "DE89370400440532013000",
@@ -114,7 +140,7 @@ final class PaymentCodeTests: XCTestCase {
             amount: 149, reference: "INV-2026-0044"
         ))
 
-        let data = invoice(code: code).render().render()
+        let data = try invoice(code: code).render().render()
         XCTAssertEqual(try scan(data), code.payload)
     }
 
@@ -145,7 +171,7 @@ final class PaymentCodeTests: XCTestCase {
         let code = PaymentCode("https://arraypress.com/pay/INV-1")
         let long = String(repeating: "Payment by SEPA credit transfer, quoting the number. ", count: 4)
 
-        let data = invoice(code: code, notes: long).render().render()
+        let data = try invoice(code: code, notes: long).render().render()
         let document = try XCTUnwrap(PDFDocument(data: data))
         let page = try XCTUnwrap(document.page(at: 0))
 
@@ -170,7 +196,7 @@ final class PaymentCodeTests: XCTestCase {
         // A reminder wants one more than an invoice does.
         let code = PaymentCode("https://arraypress.com/pay/INV-1")
         for kind in [DocumentKind.invoice, .reminder, .proforma, .quote] {
-            let document = Invoice(
+            let document = try Invoice(
                 kind: kind, branding: Branding(name: "x"), number: "N-1",
                 from: Party(name: "S", address: ["1"], taxID: "GB1"),
                 to: Party(name: "B", address: ["2"]),

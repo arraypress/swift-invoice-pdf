@@ -122,7 +122,7 @@ final class ExampleTests: XCTestCase {
                 supplyDate: "31 July 2026",
                 reference: "PO-4471"
             )
-            let document = invoice.render()
+            let document = try invoice.render()
             // An example nobody could legally send is not an example. The
             // checker reads the finished page, so this also proves the wording
             // reached it rather than merely being set on the model.
@@ -160,7 +160,7 @@ final class ExampleTests: XCTestCase {
                 supplyDate: "31 July 2026",
                 germanNotes: name != "export"
             )
-            let document = invoice.render()
+            let document = try invoice.render()
             XCTAssertEqual(
                 invoice.complianceWarnings(verifying: document), [],
                 "the \(name) example would not pass its own compliance check"

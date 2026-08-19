@@ -13,7 +13,7 @@ let package = Package(
     ],
     dependencies: [
         // The writer. This package is the paperwork; that one is the page.
-        .package(url: "https://github.com/arraypress/swift-text-pdf.git", from: "2.3.0"),
+        .package(url: "https://github.com/arraypress/swift-text-pdf.git", from: "0.1.0"),
         // Exact amounts, and the country facts an invoice turns on.
         .package(url: "https://github.com/arraypress/swift-money.git", from: "1.1.0"),
         .package(url: "https://github.com/arraypress/swift-countries.git", from: "1.0.0"),

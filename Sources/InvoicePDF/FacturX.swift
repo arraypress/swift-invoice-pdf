@@ -55,6 +55,13 @@ public struct FacturX: Sendable, Equatable {
             case .basicWithoutLines: return "Basic WL"
             }
         }
+
+        /// The profile as the XMP packet spells it: `MINIMUM`, `BASIC WL`.
+        ///
+        /// A validator reads the conformance level from the metadata, not
+        /// from the XML — the packet is how a reader knows what is attached
+        /// without opening it.
+        var conformanceLevel: String { name.uppercased() }
     }
 
     /// What the whole document is worth, in figures.
@@ -164,6 +171,7 @@ public struct FacturX: Sendable, Equatable {
         }
     }
 
+    /// How much of the specification the XML fills in — see ``Profile``.
     public var profile: Profile
 
     /// ISO 4217, three letters: GBP, EUR, CHF.
@@ -179,6 +187,8 @@ public struct FacturX: Sendable, Equatable {
     /// When payment is due, where the document says so.
     public var due: Date?
 
+    /// The document-level figures the XML states and a receiving system
+    /// cross-checks — see ``Totals``.
     public var totals: Totals
 
     /// The rate charged, as a percentage — 20 for 20%. Zero where none is.
@@ -241,6 +251,14 @@ extension Invoice {
         /// the ones a printed invoice must.
         case missing([String])
 
+        /// The rendered file would claim PDF/A-3 and fail it.
+        ///
+        /// Found only by drawing: the data can say a family is attached, not
+        /// that it had a glyph for every character that reached the page. One
+        /// customer name the face cannot draw falls back to Helvetica — which
+        /// is the reader's font, not the file's — and the claim is false.
+        case notConforming([String])
+
         public var description: String {
             switch self {
             case .notAnInvoice(let kind):
@@ -250,6 +268,9 @@ extension Invoice {
             case .missing(let fields):
                 let joined = fields.joined(separator: " ")
                 return "This cannot be sent as an e-invoice: " + joined
+            case .notConforming(let problems):
+                return "The file would claim PDF/A-3 and not meet it: "
+                    + problems.joined(separator: " ")
             }
         }
     }
@@ -352,18 +373,32 @@ extension Invoice {
         creationDate: Date = Date()
     ) throws -> Data {
         let xml = try facturX(details)
-        let document = render(in: family, fallback: fallback)
+        let document = try render(in: family, fallback: fallback)
 
+        // The Factur-X half of the metadata. PDF/A only permits XMP
+        // properties its file declares a schema for, so the packet carries
+        // the extension schema and then the four fx: properties a validator
+        // reads to know what is attached without opening it.
+        document.metadataExtras = [
+            FacturXWriter.xmpExtensionSchema,
+            FacturXWriter.xmpDescription(level: details.profile.conformanceLevel),
+        ]
+
+        // `Data` for the two profiles this writes. The specification keys the
+        // relationship to the profile: Minimum and Basic WL carry only part of
+        // the invoice, so their XML is not an alternative representation of
+        // the page — that value belongs to Basic and up, and a validator
+        // checks which is which.
         document.attach(
             xml,
             name: "factur-x.xml",
             mimeType: "text/xml",
             description: "Factur-X invoice",
-            relationship: .alternative,
+            relationship: .data,
             modified: details.issued
         )
 
-        return document.render(
+        let data = document.render(
             metadata: [
                 "Title": "\(kind.title) \(number)",
                 "Author": from.name,
@@ -372,6 +407,29 @@ extension Invoice {
             creationDate: creationDate,
             standard: .pdfA3b
         )
+
+        // Asked of the finished document, after the footers have drawn:
+        // a page number is text too, and the last chance for a base font to
+        // slip in. A file that fails the standard it claims is worse than no
+        // file — the rejection arrives days later, against your name.
+        var problems = document.conformanceIssues(for: .pdfA3b)
+        for substitution in document.substitutions {
+            problems.append(
+                "\"\(substitution.text)\" could not be drawn as written"
+                    + (substitution.unsupportedScript.map { " — \($0) needs shaping this writer does not do." }
+                        ?? " — the family has no glyphs for it.")
+            )
+        }
+        guard problems.isEmpty else {
+            if !document.fallbacks.isEmpty {
+                problems.append(
+                    "Set in a base font instead of the family: "
+                        + document.fallbacks.joined(separator: ", ") + "."
+                )
+            }
+            throw FacturXError.notConforming(problems)
+        }
+        return data
     }
 }
 
@@ -405,17 +463,16 @@ extension DocumentKind {
 enum FacturXWriter {
 
     static func xml(_ invoice: Invoice, details: FacturX, typeCode: String) -> String {
-        let date = DateFormatter()
-        date.dateFormat = "yyyyMMdd"
-        date.timeZone = TimeZone(identifier: "UTC")
-        date.locale = Locale(identifier: "en_US_POSIX")
-
+        let date = compactDate
         let currency = details.currency.uppercased()
         let category = invoice.vat.facturXCategory
 
+        // Omitted rather than written empty: BT-10 is optional, and an empty
+        // element is the one form that satisfies neither reading — some
+        // validators flag "present but empty" louder than absent.
         var trade = """
             <ram:ApplicableHeaderTradeAgreement>
-              <ram:BuyerReference>\(escaped(details.buyerReference))</ram:BuyerReference>
+        \(details.buyerReference.isEmpty ? "" : "      <ram:BuyerReference>\(escaped(details.buyerReference))</ram:BuyerReference>\n")\
               <ram:SellerTradeParty>
                 <ram:Name>\(escaped(invoice.from.name))</ram:Name>
         \(address(invoice.from))\
@@ -463,7 +520,7 @@ enum FacturXWriter {
         \(category.reason.isEmpty ? "" : "        <ram:ExemptionReason>\(escaped(category.reason))</ram:ExemptionReason>\n")\
                 <ram:BasisAmount>\(amount(details.totals.net, in: currency))</ram:BasisAmount>
                 <ram:CategoryCode>\(category.code)</ram:CategoryCode>
-                <ram:RateApplicablePercent>\(Money(details.taxRate, in: Currency("XXX")).decimalString)</ram:RateApplicablePercent>
+                <ram:RateApplicablePercent>\(rate(details.taxRate))</ram:RateApplicablePercent>
               </ram:ApplicableTradeTax>
         """
 
@@ -515,6 +572,34 @@ enum FacturXWriter {
 
     // MARK: Pieces
 
+    /// `yyyyMMdd`, which is what format 102 means.
+    ///
+    /// One definition for every date the XML carries — the issue date, the
+    /// due date and the delivery date have to agree on what a day looks like.
+    private static var compactDate: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyyMMdd"
+        return formatter
+    }
+
+    /// A percentage written exactly: `20.00`, `5.50`, `8.875`.
+    ///
+    /// Not through `Money` — a rate is not an amount, and borrowing a
+    /// currency's two decimal places rounded 8.875% to 8.88 silently. Two
+    /// places minimum keeps the output the validators saw; four is where a
+    /// percentage stops being one anybody charges.
+    private static func rate(_ value: Decimal) -> String {
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 4
+        formatter.usesGroupingSeparator = false
+        return formatter.string(from: value as NSDecimalNumber) ?? "\(value)"
+    }
+
     /// Where the goods went and when.
     ///
     /// Empty on an ordinary invoice, because nothing here is required and an
@@ -525,15 +610,6 @@ enum FacturXWriter {
     ///
     /// The order is CII's, not this file's: ShipToTradeParty comes before the
     /// delivery event, and a reader stops at the first element out of place.
-    /// `yyyyMMdd`, which is what format 102 means.
-    private static var compactDate: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(secondsFromGMT: 0)
-        formatter.dateFormat = "yyyyMMdd"
-        return formatter
-    }
-
     private static func delivery(_ invoice: Invoice, details: FacturX) -> String {
         // The Minimum profile has no delivery group at all.
         guard details.profile != .minimum else {
@@ -604,6 +680,42 @@ enum FacturXWriter {
     /// too large to be written before any XML is built.
     private static func amount(_ value: Decimal, in code: String) -> String {
         Money(value, in: Currency(code)).decimalString
+    }
+
+    // MARK: The XMP half
+
+    /// The extension schema PDF/A requires before `fx:` may appear at all.
+    ///
+    /// PDF/A forbids XMP properties the file does not declare, so the
+    /// Factur-X properties are described here — name, type and category each
+    /// — before the description below uses them. Boilerplate from the
+    /// specification, carried verbatim.
+    static let xmpExtensionSchema = """
+        <rdf:Description rdf:about="" xmlns:pdfaExtension="http://www.aiim.org/pdfa/ns/extension/" xmlns:pdfaSchema="http://www.aiim.org/pdfa/ns/schema#" xmlns:pdfaProperty="http://www.aiim.org/pdfa/ns/property#">
+          <pdfaExtension:schemas><rdf:Bag><rdf:li rdf:parseType="Resource">
+            <pdfaSchema:schema>Factur-X PDFA Extension Schema</pdfaSchema:schema>
+            <pdfaSchema:namespaceURI>urn:factur-x:pdfa:CrossIndustryDocument:invoice:1p0#</pdfaSchema:namespaceURI>
+            <pdfaSchema:prefix>fx</pdfaSchema:prefix>
+            <pdfaSchema:property><rdf:Seq>
+              <rdf:li rdf:parseType="Resource"><pdfaProperty:name>DocumentFileName</pdfaProperty:name><pdfaProperty:valueType>Text</pdfaProperty:valueType><pdfaProperty:category>external</pdfaProperty:category><pdfaProperty:description>Name of the embedded XML invoice file</pdfaProperty:description></rdf:li>
+              <rdf:li rdf:parseType="Resource"><pdfaProperty:name>DocumentType</pdfaProperty:name><pdfaProperty:valueType>Text</pdfaProperty:valueType><pdfaProperty:category>external</pdfaProperty:category><pdfaProperty:description>INVOICE</pdfaProperty:description></rdf:li>
+              <rdf:li rdf:parseType="Resource"><pdfaProperty:name>Version</pdfaProperty:name><pdfaProperty:valueType>Text</pdfaProperty:valueType><pdfaProperty:category>external</pdfaProperty:category><pdfaProperty:description>The actual version of the Factur-X data</pdfaProperty:description></rdf:li>
+              <rdf:li rdf:parseType="Resource"><pdfaProperty:name>ConformanceLevel</pdfaProperty:name><pdfaProperty:valueType>Text</pdfaProperty:valueType><pdfaProperty:category>external</pdfaProperty:category><pdfaProperty:description>The conformance level of the Factur-X data</pdfaProperty:description></rdf:li>
+            </rdf:Seq></pdfaSchema:property>
+          </rdf:li></rdf:Bag></pdfaExtension:schemas>
+        </rdf:Description>
+        """
+
+    /// The four properties themselves, at a conformance level.
+    static func xmpDescription(level: String) -> String {
+        """
+        <rdf:Description rdf:about="" xmlns:fx="urn:factur-x:pdfa:CrossIndustryDocument:invoice:1p0#">
+          <fx:DocumentType>INVOICE</fx:DocumentType>
+          <fx:DocumentFileName>factur-x.xml</fx:DocumentFileName>
+          <fx:Version>1.0</fx:Version>
+          <fx:ConformanceLevel>\(level)</fx:ConformanceLevel>
+        </rdf:Description>
+        """
     }
 
     private static func indented(_ block: String) -> String {

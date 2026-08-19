@@ -131,11 +131,22 @@ public enum DocumentKind: String, Sendable, CaseIterable, Codable {
 /// A business document, rendered from data.
 public struct Invoice: Sendable {
 
+    /// What sort of document this is — invoice, credit note, quote.
     public let kind: DocumentKind
+
+    /// The seller's identity on the page: logo, colours, typeface.
     public let branding: Branding
+
+    /// The document number, exactly as it should print.
     public let number: String
+
+    /// Who issued the document.
     public let from: Party
+
+    /// Who it is addressed to.
     public let to: Party
+
+    /// The lines being billed, in the order they appear.
     public let items: [LineItem]
 
     /// Subtotal rows, in order. A list of pairs rather than a dictionary,
@@ -148,13 +159,19 @@ public struct Invoice: Sendable {
     /// Dates, terms and references.
     public let details: [(label: String, value: String)]
 
+    /// Free text under the table — terms, thanks, instructions.
     public let notes: String
 
     /// An optional stamp, e.g. `PAID` or `OVERDUE`.
     public let status: String
 
+    /// The paper the document is set for.
     public let size: PageSize
+
+    /// How VAT is treated, which drives the wording the law requires.
     public let vat: VatTreatment
+
+    /// The tax breakdown by rate, where more than one applies.
     public let vatLines: [VatLine]
 
     /// Date of supply, which German law requires separately from the document
@@ -313,8 +330,8 @@ public struct Invoice: Sendable {
     /// The font, if any, has to be in place before anything is drawn — text is
     /// committed to the content stream as it is laid out, so a font attached
     /// afterwards arrives too late to be used.
-    public func render(embedding font: EmbeddedFont? = nil) -> Document {
-        render(in: nil, fallback: font)
+    public func render(embedding font: EmbeddedFont? = nil) throws -> Document {
+        try render(in: nil, fallback: font)
     }
 
     /// The same, set in a family.
@@ -322,9 +339,14 @@ public struct Invoice: Sendable {
     /// Where `family` is the document's type and draws everything, `fallback`
     /// is reached for only when the family cannot — a Cyrillic customer name
     /// against a brand face that has no Cyrillic in it.
-    public func render(in family: FontFamily?, fallback: EmbeddedFont? = nil) -> Document {
+    ///
+    /// - Throws: When the branding's typeface files cannot be loaded. A
+    ///   missing brand font is reported, not substituted — a document
+    ///   silently set in Helvetica looks fine to everyone except the person
+    ///   whose brand it is.
+    public func render(in family: FontFamily?, fallback: EmbeddedFont? = nil) throws -> Document {
         let pdf = Document(size: size, orientation: .portrait, margin: 48, fontSize: 9.5, leading: 13)
-        pdf.family = family ?? branding.typeface.flatMap { try? $0.family() }
+        pdf.family = try family ?? branding.family()
         pdf.embeddedFont = fallback
         pdf.language = germanNotes ? "de" : "en"
 
@@ -358,6 +380,9 @@ public struct Invoice: Sendable {
     }
 
     /// Renders and writes to a file.
+    ///
+    /// Throws where `render` cannot: a branding typeface whose files will not
+    /// load is reported here rather than silently set in Helvetica.
     @discardableResult
     public func save(to url: URL) throws -> Int {
         try render().save(to: url, metadata: [
@@ -415,7 +440,10 @@ public struct Invoice: Sendable {
     /// is unreadable, and on a mono palette it disappears entirely.
     private func stamp(_ pdf: Document, y: Double) {
         let label = status.uppercased()
-        let width = Font.helveticaBold.widthOf(label, size: 8) + 22
+        // Measured by the document, not the base font: with a family attached
+        // the label is drawn in the family's bold, and a wider face measured
+        // as Helvetica overruns the box drawn around it.
+        let width = pdf.width(of: label, size: 8, font: .helveticaBold) + 22
         let height = 16.0
         let left = pdf.right() - width
         let bottom = y - 4
@@ -554,9 +582,12 @@ public struct Invoice: Sendable {
             table.row([rate, line.net, line.vat])
         }
 
-        let saved = pdf.cursor()
+        // The cursor is wherever the table left it — which, when the table
+        // broke to a new page, is near the top of that page. Clamping it back
+        // to where this page started was the bug: it dragged the cursor to
+        // the bottom of the fresh page and everything after arrived a page
+        // late, below most of a page of nothing.
         table.draw(pdf, size: 8.5, headerFill: branding.wash)
-        pdf.move(to: min(pdf.cursor(), saved))
     }
 
     private func totalsBlock(_ pdf: Document) {

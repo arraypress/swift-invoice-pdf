@@ -70,7 +70,7 @@ final class TableAndComplianceTests: XCTestCase {
         XCTAssertEqual(DocumentKind.remittance.title, "REMITTANCE ADVICE")
     }
 
-    func testDeliveryNoteShowsNoMoney() {
+    func testDeliveryNoteShowsNoMoney() throws {
         // It travels with the goods; the warehouse has no business seeing the
         // price. Suppressing the columns is the document's defining behaviour.
         XCTAssertFalse(DocumentKind.deliveryNote.showsMoney)
@@ -82,7 +82,7 @@ final class TableAndComplianceTests: XCTestCase {
             items: [LineItem(description: "Widget", amount: "£99.00", quantity: "3", unitPrice: "£33.00")],
             totals: [("Subtotal", "£99.00")], total: [("Total", "£99.00")]
         )
-        let stream = String(decoding: note.render().render(), as: UTF8.self)
+        let stream = String(decoding: try note.render().render(), as: UTF8.self)
         XCTAssertFalse(stream.contains("99.00"), "a price reached a delivery note")
         XCTAssertTrue(stream.contains("(Widget) Tj"))
     }
@@ -125,7 +125,7 @@ final class TableAndComplianceTests: XCTestCase {
         XCTAssertTrue(VatTreatment.standard.notes(german: true).isEmpty)
     }
 
-    func testAnInvoiceWithManyLinesBreaksAcrossPages() {
+    func testAnInvoiceWithManyLinesBreaksAcrossPages() throws {
         // Uncommon but real — a year of licences on one invoice.
         let items = (1...60).map {
             LineItem(description: "Licence \($0)", amount: "£10.00", unitPrice: "£10.00")
@@ -139,7 +139,7 @@ final class TableAndComplianceTests: XCTestCase {
             total: [("Total due", "£720.00")],
             supplyDate: "1 Aug"
         )
-        let document = invoice.render()
+        let document = try invoice.render()
         XCTAssertGreaterThan(document.pageCount(), 1)
 
         // The item table's heading must repeat, or page two is a column of

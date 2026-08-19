@@ -252,8 +252,8 @@ public struct Consignment: Sendable {
     /// The font, if any, has to be in place before anything is drawn — text is
     /// committed to the content stream as it is laid out, so a font attached
     /// afterwards arrives too late to be used.
-    public func render(embedding font: EmbeddedFont? = nil) -> Document {
-        render(in: nil, fallback: font)
+    public func render(embedding font: EmbeddedFont? = nil) throws -> Document {
+        try render(in: nil, fallback: font)
     }
 
     /// The same, set in a family.
@@ -261,9 +261,14 @@ public struct Consignment: Sendable {
     /// Where `family` is the document's type and draws everything, `fallback`
     /// is reached for only when the family cannot — a Cyrillic customer name
     /// against a brand face that has no Cyrillic in it.
-    public func render(in family: FontFamily?, fallback: EmbeddedFont? = nil) -> Document {
+    ///
+    /// - Throws: When the branding's typeface files cannot be loaded. A
+    ///   missing brand font is reported, not substituted — a document
+    ///   silently set in Helvetica looks fine to everyone except the person
+    ///   whose brand it is.
+    public func render(in family: FontFamily?, fallback: EmbeddedFont? = nil) throws -> Document {
         let pdf = Document(size: size, orientation: orientation, margin: 48, fontSize: 9, leading: 12.5)
-        pdf.family = family ?? branding.typeface.flatMap { try? $0.family() }
+        pdf.family = try family ?? branding.family()
         pdf.embeddedFont = fallback
 
         Layout.masthead(pdf, branding: branding, title: kind.title, reference: number, titleSize: 20)
@@ -426,9 +431,13 @@ public struct Consignment: Sendable {
         pdf.gap(16)
         pdf.breakIfNeeded(90)
 
-        pdf.cell(kind.declaration, x: pdf.left(), boxWidth: pdf.contentWidth() * 0.72,
-                 size: 8, font: .helvetica, color: branding.muted)
-        pdf.gap(14)
+        // `block`, not `cell`: a cell draws one line however long, so the
+        // declaration ran 76 points past the box it was given. The measure
+        // stays at 0.72 of the page — fine print set narrower than the
+        // content above it reads as a declaration rather than a paragraph.
+        pdf.block(kind.declaration, x: pdf.left(), width: pdf.contentWidth() * 0.72,
+                  size: 8, font: .helvetica, color: branding.muted, leading: 11)
+        pdf.gap(4)
 
         Layout.signature(pdf, branding: branding, captions: ["Signature", "Name and position", "Date"])
     }

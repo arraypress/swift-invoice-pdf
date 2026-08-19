@@ -355,6 +355,17 @@ public struct Branding: Sendable, Equatable, Codable {
 
     public var accentColor: Color { .hex(accent) }
 
+    /// The brand family, loaded — or `nil` when no typeface is configured.
+    ///
+    /// `render` has no error channel, so a typeface whose files cannot be
+    /// read falls back to Helvetica there, silently. The throwing callers —
+    /// `save`, and anything producing a conforming file — go through this
+    /// instead: a branding profile naming a font that is not on the disk is a
+    /// mistake to report, not a styling preference to substitute.
+    public func family() throws -> FontFamily? {
+        try typeface.map { try $0.family() }
+    }
+
     /// Secondary text.
     public var muted: Color { .grey(115) }
 

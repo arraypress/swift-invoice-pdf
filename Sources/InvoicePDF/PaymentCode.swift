@@ -70,11 +70,17 @@ public struct PaymentCode: Sendable, Equatable {
 
         var money = ""
         if let amount {
-            guard amount > 0, amount < 1_000_000_000 else { return nil }
-
             var rounded = Decimal()
             var input = amount
             NSDecimalRound(&rounded, &input, 2, .plain)
+
+            // Bounded after rounding, not before: 999999999.999 slips under a
+            // pre-rounding cap and comes out a cent over the ceiling, and
+            // 0.004 is a positive amount that rounds to a payment of nothing.
+            // EPC069-12 allows 0.01 through 999999999.99, of what is written.
+            guard rounded >= Decimal(string: "0.01")!,
+                  rounded <= Decimal(string: "999999999.99")!
+            else { return nil }
 
             let formatter = NumberFormatter()
             formatter.locale = Locale(identifier: "en_US_POSIX")

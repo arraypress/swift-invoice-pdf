@@ -72,7 +72,7 @@ final class BrandTypefaceTests: XCTestCase {
         var other = FontFamily(name: "Other")
         other.add(try EmbeddedFont.load(URL(fileURLWithPath: regular)), weight: .regular)
 
-        XCTAssertNotNil(branded.render(in: other))
+        XCTAssertNotNil(try branded.render(in: other))
     }
 
     func testTheOlderSignatureStillWorks() throws {
@@ -172,6 +172,30 @@ final class BrandTypefaceTests: XCTestCase {
         }
     }
 
+    func testSaveReportsAMissingBrandFontRatherThanSubstituting() throws {
+        // `render` has no error channel, so there a bad typeface falls back
+        // to Helvetica. `save` throws, so a branding profile naming a font
+        // that is not on the disk is a report, not a silent substitution.
+        let branded = Invoice(
+            branding: Branding(name: "SwiftInvoices Ltd",
+                               typeface: TypefaceFiles(regular: "/no/such/brand.ttf")),
+            number: "INV-1",
+            from: Party(name: "S", address: ["1"], taxID: "GB1"),
+            to: Party(name: "B", address: ["2"]),
+            items: [LineItem(description: "Thing", amount: "£1.00")],
+            totals: [("Subtotal", "£1.00")],
+            supplyDate: "1 Aug 2026"
+        )
+        let file = FileManager.default.temporaryDirectory
+            .appendingPathComponent("missing-brand-font-\(UUID().uuidString).pdf")
+
+        XCTAssertThrowsError(try branded.save(to: file)) { error in
+            XCTAssertEqual(error as? EmbeddingError, .unreadable("brand.ttf"))
+        }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: file.path),
+                       "a file appeared despite the refusal")
+    }
+
     func testBrandingSurvivesJSON() throws {
         let branding = Branding(name: "SwiftInvoices Ltd", accent: "#1F3A5F",
                                 typeface: TypefaceFiles(name: "Arial", regular: regular))
@@ -201,7 +225,7 @@ extension BrandTypefaceTests {
 
     func testACompliantInvoiceVerifiesAgainstItsOwnPage() throws {
         let invoice = reverseCharge()
-        let document = invoice.render()
+        let document = try invoice.render()
 
         XCTAssertTrue(invoice.complianceWarnings().isEmpty, "\(invoice.complianceWarnings())")
         XCTAssertTrue(

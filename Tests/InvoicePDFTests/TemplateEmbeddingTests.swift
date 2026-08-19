@@ -38,10 +38,10 @@ final class TemplateEmbeddingTests: XCTestCase {
 
         // Attaching a font after the fact cannot work — the text is already in
         // the content stream by then — so the template has to be given it.
-        let without = invoice.render()
+        let without = try invoice.render()
         XCTAssertFalse(without.substitutions.isEmpty)
 
-        let with = invoice.render(embedding: font)
+        let with = try invoice.render(embedding: font)
         XCTAssertTrue(with.substitutions.isEmpty, "\(with.substitutions)")
         XCTAssertTrue(String(decoding: with.render(), as: UTF8.self).contains("/FontFile2"))
     }
