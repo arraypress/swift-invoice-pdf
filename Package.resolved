@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/arraypress/swift-money.git",
       "state" : {
-        "revision" : "e928100f488759aac1593ba1887a2d25cb15a872",
-        "version" : "1.1.0"
+        "revision" : "70865dc13a979dfa8b1e192fc73dec6271ea8524",
+        "version" : "1.1.1"
       }
     },
     {
