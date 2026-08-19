@@ -3,17 +3,28 @@
 Business documents as PDFs: invoices, statements, timesheets, royalty statements, aged analyses and customs paperwork — with the VAT wording and the compliance checks that decide whether the recipient can rely on them.
 
 ```swift
+let sums = Totals(
+    lines: [
+        .init("Template design and setup", quantity: 6, unitPrice: Money("70.00", in: .gbp)!),
+        .init("Priority support — first year", unitPrice: Money("180.00", in: .gbp)!),
+    ],
+    rate: 20,
+    currency: .gbp
+)
+
 let invoice = Invoice(
     branding: branding,
     number: "INV-2026-0042",
     from: seller,
     to: buyer,
-    items: items,
-    totals: [("Subtotal", "£856.00"), ("VAT at 20%", "£154.08")],
-    total: [("Total due", "£924.48")]
+    items: sums.items(),
+    totals: sums.rows(),
+    total: [("Total due", sums.gross.formatted())]
 )
 try invoice.save(to: url)     // 7 KB
 ```
+
+Give the lines as money and every figure follows — the items, the subtotals, the VAT and the XML of an e-invoice all from the same integers, so no two of them can disagree. Every amount can also be handed over as a formatted string instead, for callers who do their own arithmetic.
 
 ## Why
 

@@ -746,7 +746,13 @@ public struct Invoice: Sendable {
         let content = notes.reduce(0.0) { total, note in
             total + pdf.blockHeight(note, size: 8.5, width: inner, leading: 12)
         }
-        let height = content + padding * 2
+
+        // blockHeight counts a full leading below the last baseline, but the
+        // ink stops at the descender — for the base-14 faces, ascender plus
+        // descender is exactly the point size, so the phantom height is the
+        // leading less the size. Left in, it all lands under the last line
+        // and the block sits high in a box that was measured to centre it.
+        let height = content - (12 - 8.5) + padding * 2
 
         pdf.gap(24)
         pdf.breakIfNeeded(height + 16)
