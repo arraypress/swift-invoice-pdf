@@ -487,14 +487,17 @@ extension TemplateTests {
         let top = try XCTUnwrap(rules.filter { $0 > highest }.min())
         let bottom = try XCTUnwrap(rules.filter { $0 < lowest }.max())
 
-        let above = top - highest
-        let below = lowest - bottom
+        // Measured to the ink, not the baseline: the eye centres the visible
+        // letterforms, and a baseline sits an ascender below the type's top
+        // and a descender above its bottom. Comparing baselines passed while
+        // the box was visibly bottom-heavy — the phantom leading below the
+        // last line hid inside the slack.
+        let size = 8.5
+        let above = (top - highest) - Font.helvetica.ascender(size)
+        let below = (lowest - bottom) - (size - Font.helvetica.ascender(size))
 
-        // Not identical: a baseline sits above the descender, so the measured
-        // gap below is to the bottom of the type rather than the top of it.
-        // Within four points is the difference between centred and not.
-        XCTAssertEqual(above, below, accuracy: 4,
-                       "the notice is \(above) above and \(below) below its own rule")
+        XCTAssertEqual(above, below, accuracy: 0.5,
+                       "the notice ink is \(above) above and \(below) below its own rule")
     }
 }
 

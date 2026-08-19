@@ -77,6 +77,16 @@ public struct Totals: Sendable {
         self.rounding = rounding
     }
 
+    /// The locale the formatted figures default to.
+    ///
+    /// Fixed rather than `Locale.current`, because two machines rendering
+    /// the same invoice must produce the same bytes — a laptop set to de_DE
+    /// and the CI that regenerates the examples cannot be allowed to
+    /// disagree about where the thousands separator goes. Pass a locale to
+    /// format for a particular reader; the default exists to be
+    /// reproducible.
+    public static let displayLocale = Locale(identifier: "en_US")
+
     // MARK: What follows
 
     /// The lines added up.
@@ -101,7 +111,7 @@ public struct Totals: Sendable {
 
     /// The rows a document prints, formatted from the same integers the XML
     /// carries — so the page and the record cannot disagree.
-    public func rows(in locale: Locale = .current) -> [(label: String, value: String)] {
+    public func rows(in locale: Locale = Totals.displayLocale) -> [(label: String, value: String)] {
         var rows: [(label: String, value: String)] = [
             ("Subtotal", net.formatted(in: locale)),
         ]
@@ -112,7 +122,7 @@ public struct Totals: Sendable {
     }
 
     /// The line items, ready for the template.
-    public func items(in locale: Locale = .current) -> [LineItem] {
+    public func items(in locale: Locale = Totals.displayLocale) -> [LineItem] {
         lines.map {
             LineItem(
                 description: $0.description,
@@ -124,7 +134,7 @@ public struct Totals: Sendable {
     }
 
     /// The VAT breakdown, at the one rate these lines share.
-    public func vatLines(in locale: Locale = .current) -> [VatLine] {
+    public func vatLines(in locale: Locale = Totals.displayLocale) -> [VatLine] {
         guard rate != 0 else { return [] }
         return [VatLine(rate: "\(Totals.percentage(rate))%",
                         net: net.formatted(in: locale),
