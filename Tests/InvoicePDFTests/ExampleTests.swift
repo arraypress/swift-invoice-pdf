@@ -60,7 +60,10 @@ final class ExampleTests: XCTestCase {
     private static let branding = Branding(
         name: "SwiftInvoices Ltd",
         tagline: "Business documents, generated",
-        accent: "#1F3A5F",
+        // The default near-black. The flagship examples stay monochrome —
+        // the loudest things on an invoice should be its title and its
+        // total, not the vendor's name — and the branding examples are
+        // where an accent colour shows itself off.
         address: ["71–75 Shelton Street", "London WC2H 9JQ", "United Kingdom"],
         footnotes: ["SwiftInvoices Ltd is registered in England and Wales, no. 09182736."]
     )
@@ -451,7 +454,11 @@ final class ExampleTests: XCTestCase {
     func testTheSameInvoiceUnderDifferentBranding() throws {
         let looks: [(String, Branding)] = [
             ("plain", Branding(name: "SwiftInvoices Ltd", address: Self.branding.address)),
-            ("navy", Self.branding),
+            // Named here rather than borrowed from the shared fixture: the
+            // flagship examples went monochrome, and this page is the one
+            // whose whole point is showing an accent.
+            ("navy", Branding(name: "SwiftInvoices Ltd", tagline: "Business documents, generated",
+                              accent: "#1F3A5F", address: Self.branding.address)),
             ("warm", Branding(name: "SwiftInvoices Ltd", tagline: "Business documents, generated",
                               accent: "#7A4A2B", address: Self.branding.address)),
         ]
