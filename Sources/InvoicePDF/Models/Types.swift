@@ -1,6 +1,6 @@
 //
 //  Types.swift
-//  TextPDF
+//  InvoicePDF
 //
 //  Created by David Sherlock on 2026.
 //
@@ -52,28 +52,6 @@ public struct Party: Sendable, Equatable, Codable {
         self.email = email
         self.taxID = taxID
         self.country = country
-    }
-
-    /// The address block, with a link where a line has somewhere to go.
-    ///
-    /// An invoice is read from a screen at least as often as from paper, and
-    /// the supplier's email address is the one thing on it a recipient
-    /// actually needs to act on when something is wrong.
-    public func linkedLines(vatLabel: String = "VAT") -> [(text: String, url: String)] {
-        var out = address.map { (text: $0, url: "") }
-        if !email.trimmingCharacters(in: .whitespaces).isEmpty {
-            out.append((email, "mailto:\(email.trimmingCharacters(in: .whitespaces))"))
-        }
-        if !taxID.isEmpty { out.append(("\(vatLabel) \(taxID)", "")) }
-        return out.filter { !$0.text.trimmingCharacters(in: .whitespaces).isEmpty }
-    }
-
-    /// The address block, one string per line.
-    public func lines(vatLabel: String = "VAT") -> [String] {
-        var lines = address
-        if !email.isEmpty { lines.append(email) }
-        if !taxID.isEmpty { lines.append("\(vatLabel) \(taxID)") }
-        return lines.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
     }
 }
 
@@ -173,126 +151,6 @@ public enum VatTreatment: String, Sendable, CaseIterable, Codable {
     public enum Wording: String, Sendable, CaseIterable {
 
         case german, french, italian, spanish, dutch
-
-        /// What a document in this language calls the reverse charge and the
-        /// rest, with the citation its own law uses.
-        func notes(for treatment: VatTreatment) -> [String] {
-            switch (self, treatment) {
-            case (.german, .reverseCharge):
-                return ["Steuerschuldnerschaft des Leistungsempfängers (§ 13b UStG)."]
-            case (.german, .intraCommunitySupply):
-                return ["Steuerfreie innergemeinschaftliche Lieferung (§ 4 Nr. 1b UStG)."]
-            case (.german, .export):
-                return ["Steuerfreie Ausfuhrlieferung (§ 4 Nr. 1a UStG)."]
-            case (.german, .smallBusiness):
-                return ["Gemäß § 19 UStG wird keine Umsatzsteuer berechnet."]
-            case (.german, .exempt):
-                return ["Steuerfrei."]
-
-            case (.french, .reverseCharge):
-                return ["Autoliquidation — TVA due par le preneur.",
-                        "Article 283-2 du CGI ; article 196 de la directive 2006/112/CE."]
-            case (.french, .intraCommunitySupply):
-                return ["Livraison intracommunautaire exonérée.",
-                        "Article 262 ter I du CGI ; article 138 de la directive 2006/112/CE."]
-            case (.french, .export):
-                return ["Exportation exonérée de TVA (article 262 I du CGI)."]
-            case (.french, .smallBusiness):
-                return ["TVA non applicable, article 293 B du CGI."]
-            case (.french, .exempt):
-                return ["Opération exonérée de TVA."]
-
-            case (.italian, .reverseCharge):
-                return ["Inversione contabile — IVA assolta dal committente.",
-                        "Articolo 17 del DPR 633/72 ; articolo 196 della direttiva 2006/112/CE."]
-            case (.italian, .intraCommunitySupply):
-                return ["Cessione intracomunitaria non imponibile.",
-                        "Articolo 41 del DL 331/93 ; articolo 138 della direttiva 2006/112/CE."]
-            case (.italian, .export):
-                return ["Operazione non imponibile (articolo 8 del DPR 633/72)."]
-            case (.italian, .smallBusiness):
-                return ["Operazione in regime forfettario, IVA non applicata."]
-            case (.italian, .exempt):
-                return ["Operazione esente IVA."]
-
-            case (.spanish, .reverseCharge):
-                return ["Inversión del sujeto pasivo — IVA a declarar por el destinatario.",
-                        "Artículo 84 de la Ley 37/1992 ; artículo 196 de la Directiva 2006/112/CE."]
-            case (.spanish, .intraCommunitySupply):
-                return ["Entrega intracomunitaria exenta.",
-                        "Artículo 25 de la Ley 37/1992 ; artículo 138 de la Directiva 2006/112/CE."]
-            case (.spanish, .export):
-                return ["Exportación exenta de IVA (artículo 21 de la Ley 37/1992)."]
-            case (.spanish, .smallBusiness):
-                return ["Operación sin IVA por régimen de franquicia."]
-            case (.spanish, .exempt):
-                return ["Operación exenta de IVA."]
-
-            case (.dutch, .reverseCharge):
-                return ["Btw verlegd — te voldoen door de afnemer.",
-                        "Artikel 12 lid 3 Wet OB ; artikel 196 richtlijn 2006/112/EG."]
-            case (.dutch, .intraCommunitySupply):
-                return ["Intracommunautaire levering, 0% btw.",
-                        "Tabel II post a6 Wet OB ; artikel 138 richtlijn 2006/112/EG."]
-            case (.dutch, .export):
-                return ["Uitvoer buiten de EU, 0% btw."]
-            case (.dutch, .smallBusiness):
-                return ["Geen btw in rekening gebracht — kleineondernemersregeling."]
-            case (.dutch, .exempt):
-                return ["Vrijgesteld van btw."]
-
-            case (_, .standard):
-                return []
-            }
-        }
-    }
-
-    /// The wording this treatment puts on the document.
-    ///
-    /// - Parameter also: A second language beside the English. The document
-    ///   carries both, because the person reading it and the authority
-    ///   checking it are often not the same person.
-    public func notes(also language: Wording? = nil) -> [String] {
-        let english: [String]
-
-        switch self {
-        case .standard:
-            return []
-        case .reverseCharge:
-            english = [
-                "Reverse charge: VAT to be accounted for by the recipient.",
-                "Article 196, Council Directive 2006/112/EC.",
-            ]
-        case .intraCommunitySupply:
-            english = [
-                "Zero-rated intra-community supply.",
-                "Article 138, Council Directive 2006/112/EC.",
-            ]
-        case .export:
-            english = ["Zero-rated export outside the European Union."]
-        case .smallBusiness:
-            english = ["No VAT charged under the small-business scheme."]
-        case .exempt:
-            english = ["Exempt from VAT."]
-        }
-
-        guard let language else { return english }
-        return english + language.notes(for: self)
-    }
-
-    /// The English wording, plus the German — as it was before other
-    /// languages existed.
-    public func notes(german: Bool) -> [String] {
-        notes(also: german ? .german : nil)
-    }
-
-    /// Whether both parties' VAT numbers must appear.
-    ///
-    /// Mandatory for reverse charge and intra-community supply — the
-    /// recipient's number evidences their status, and without it the zero
-    /// rating is not supportable.
-    public var requiresBothVatNumbers: Bool {
-        self == .reverseCharge || self == .intraCommunitySupply
     }
 }
 
@@ -422,22 +280,4 @@ public struct TypefaceFiles: Sendable, Equatable, Codable {
         self.italic = italic
     }
 
-    /// Loads the family.
-    public func family() throws -> FontFamily {
-        var loaded = FontFamily(name: name.isEmpty ? "Brand" : name)
-
-        func add(_ path: String?, _ weight: FontFamily.Weight, italic: Bool = false) throws {
-            guard let path, !path.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-            let url = URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
-            loaded.add(try EmbeddedFont.load(url), weight: weight, italic: italic)
-        }
-
-        try add(regular, .regular)
-        try add(medium, .medium)
-        try add(semibold, .semibold)
-        try add(bold, .bold)
-        try add(italic, .regular, italic: true)
-
-        return loaded
-    }
 }
