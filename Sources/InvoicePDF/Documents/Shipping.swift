@@ -314,25 +314,27 @@ public struct Consignment: Sendable {
         let top = pdf.cursor()
         let column = pdf.contentWidth() / 2
 
-        pdf.textAt("CONSIGNEE", x: pdf.left(), y: top, size: 7, font: .helveticaBold, color: branding.muted)
-        pdf.textAt(consignee.name, x: pdf.left(), y: top - 15, size: 10, font: .helveticaBold, color: branding.ink)
+        // Each wraps inside its own column, so a long name or address grows
+        // downwards rather than into the other block or off the page.
+        let measure = column - 20
 
-        var leftY = top - 28
+        pdf.textAt("CONSIGNEE", x: pdf.left(), y: top, size: 7, font: .helveticaBold, color: branding.muted)
+        var leftY = Layout.wrapped(pdf, consignee.name, x: pdf.left(), y: top - 15, width: measure,
+                                   size: 10, font: .helveticaBold, color: branding.ink, step: 13)
         for line in consignee.lines() {
-            pdf.textAt(line, x: pdf.left(), y: leftY, size: 8.5, font: .helvetica, color: branding.muted)
-            leftY -= 11
+            leftY = Layout.wrapped(pdf, line, x: pdf.left(), y: leftY, width: measure,
+                                   size: 8.5, font: .helvetica, color: branding.muted, step: 11)
         }
 
         var rightY = leftY
         if let deliverTo {
             let x = pdf.left() + column + 20
             pdf.textAt("DELIVER TO", x: x, y: top, size: 7, font: .helveticaBold, color: branding.muted)
-            pdf.textAt(deliverTo.name, x: x, y: top - 15, size: 10, font: .helveticaBold, color: branding.ink)
-
-            rightY = top - 28
+            rightY = Layout.wrapped(pdf, deliverTo.name, x: x, y: top - 15, width: measure,
+                                    size: 10, font: .helveticaBold, color: branding.ink, step: 13)
             for line in deliverTo.lines() {
-                pdf.textAt(line, x: x, y: rightY, size: 8.5, font: .helvetica, color: branding.muted)
-                rightY -= 11
+                rightY = Layout.wrapped(pdf, line, x: x, y: rightY, width: measure,
+                                        size: 8.5, font: .helvetica, color: branding.muted, step: 11)
             }
         }
         pdf.move(to: min(leftY, rightY) - 14)

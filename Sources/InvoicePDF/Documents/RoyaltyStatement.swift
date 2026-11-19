@@ -277,10 +277,9 @@ public struct RoyaltyStatement: Sendable {
         pdf.gap(18)
 
         for row in reconciliation {
-            let baseline = pdf.cursor()
-            pdf.textAt(row.label, x: x, y: baseline, size: 9, font: .helvetica, color: branding.muted)
-            pdf.textAt(row.value, x: x, y: baseline, size: 9, font: .helveticaBold,
-                       color: branding.ink, align: .right, boxWidth: width)
+            Layout.figure(pdf, row, x: x, width: width, labelSize: 9, valueSize: 9,
+                          labelFont: .helvetica, labelColor: branding.muted,
+                          valueColor: branding.ink, step: 11)
             pdf.gap(14)
         }
     }

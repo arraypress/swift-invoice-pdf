@@ -76,18 +76,21 @@ enum Layout {
         rows: [(label: String, value: String)] = []
     ) {
         let top = pdf.cursor()
+        let column = pdf.contentWidth() / 2
+        // The party has the page to itself unless there are rows beside it.
+        let measure = rows.isEmpty ? pdf.contentWidth() : column - 20
 
         pdf.textAt(leftHeading, x: pdf.left(), y: top, size: 7, font: .helveticaBold, color: branding.muted)
-        pdf.textAt(party.name, x: pdf.left(), y: top - 15, size: 11, font: .helveticaBold, color: branding.ink)
-
-        var y = top - 28
+        // A one-line name leaves the address starting where it always did,
+        // thirteen points below it.
+        var y = wrapped(pdf, party.name, x: pdf.left(), y: top - 15, width: measure,
+                        size: 11, font: .helveticaBold, color: branding.ink, step: 13)
         for line in party.lines() + extraLines {
-            pdf.textAt(line, x: pdf.left(), y: y, size: 8.5, font: .helvetica, color: branding.muted)
-            y -= 11
+            y = wrapped(pdf, line, x: pdf.left(), y: y, width: measure,
+                        size: 8.5, font: .helvetica, color: branding.muted, step: 11)
         }
 
         if !rows.isEmpty {
-            let column = pdf.contentWidth() / 2
             let x = pdf.left() + column + 20
 
             if !rightHeading.isEmpty {
@@ -96,14 +99,54 @@ enum Layout {
 
             var rightY = top - 15
             for row in rows {
-                pdf.textAt(row.label, x: x, y: rightY, size: 8.5, font: .helvetica, color: branding.muted)
-                pdf.textAt(row.value, x: x, y: rightY, size: 8.5, font: .helveticaBold,
-                           color: branding.ink, align: .right, boxWidth: column - 20)
-                rightY -= 12
+                rightY = labelled(pdf, row, x: x, y: rightY, width: column - 20, size: 8.5,
+                                  labelColor: branding.muted, valueColor: branding.ink, step: 12)
             }
             y = min(y, rightY)
         }
         pdf.move(to: y - 16)
+    }
+
+    /// Text wrapped to `width`, one baseline every `step` from `y` down.
+    /// Returns the baseline the next line would take. A line that fits is
+    /// drawn exactly where a single `textAt` would have put it.
+    @discardableResult
+    static func wrapped(_ pdf: Document, _ text: String, x: Double, y: Double, width: Double,
+                        size: Double, font: Font, color: Color, step: Double) -> Double {
+        var y = y
+        for line in pdf.lines(of: text, width: width, size: size, font: font) {
+            pdf.textAt(line, x: x, y: y, size: size, font: font, color: color)
+            y -= step
+        }
+        return y
+    }
+
+    /// A label with its value set flush right beside it. A value too wide to
+    /// sit beside the label drops to the lines below, wrapped, rather than
+    /// printing over it; a label too wide for the column wraps. Returns the
+    /// baseline for the next row.
+    static func labelled(_ pdf: Document, _ row: (label: String, value: String),
+                         x: Double, y: Double, width: Double, size: Double,
+                         labelColor: Color, valueColor: Color, step: Double) -> Double {
+        let labelLines = pdf.lines(of: row.label, width: width, size: size, font: .helvetica)
+        var y = y
+        for (index, line) in labelLines.enumerated() {
+            pdf.textAt(line, x: x, y: y, size: size, font: .helvetica, color: labelColor)
+            if index < labelLines.count - 1 { y -= step }
+        }
+        let room = width - pdf.width(of: labelLines.last ?? "", size: size, font: .helvetica) - 8
+        if pdf.width(of: row.value, size: size, font: .helveticaBold) <= room {
+            pdf.textAt(row.value, x: x, y: y, size: size, font: .helveticaBold,
+                       color: valueColor, align: .right, boxWidth: width)
+            return y - step
+        }
+        y -= step
+        for piece in pdf.lines(of: row.value, width: width, size: size, font: .helveticaBold) {
+            pdf.textAt(piece, x: x, y: y, size: size, font: .helveticaBold,
+                       color: valueColor, align: .right, boxWidth: width)
+            y -= step
+        }
+        return y
     }
 
     /// Label and figure pairs under a rule, right-hand side.
@@ -128,15 +171,36 @@ enum Layout {
         pdf.gap(20)
 
         for row in rows {
-            let baseline = pdf.cursor()
-            pdf.textAt(row.label, x: x, y: baseline, size: 10.5, font: .helveticaBold, color: branding.ink)
-            pdf.textAt(row.value, x: x, y: baseline, size: 13, font: .helveticaBold,
-                       color: branding.ink, align: .right, boxWidth: width)
+            figure(pdf, row, x: x, width: width, labelSize: 10.5, valueSize: 13,
+                   labelColor: branding.ink, valueColor: branding.ink, step: 13)
             pdf.gap(12)
             pdf.line(from: x, pdf.cursor(), to: pdf.right(), pdf.cursor(),
                      color: branding.hairline, thickness: 0.5)
             pdf.gap(14)
         }
+    }
+
+    /// A label and its figure on one baseline at the cursor, the figure flush
+    /// right. A label too long for the room the figure leaves wraps upward
+    /// into lines of its own above the figure's line, rather than running
+    /// under the figure and off the edge; the cursor ends on the figure's
+    /// baseline, as it does for a label that fits.
+    static func figure(_ pdf: Document, _ row: (label: String, value: String),
+                       x: Double, width: Double, labelSize: Double, valueSize: Double,
+                       labelFont: Font = .helveticaBold,
+                       labelColor: Color, valueColor: Color, step: Double) {
+        let room = max(width - pdf.width(of: row.value, size: valueSize, font: .helveticaBold) - 10,
+                       width * 0.3)
+        let lines = pdf.lines(of: row.label, width: room, size: labelSize, font: labelFont)
+        for line in lines.dropLast() {
+            pdf.textAt(line, x: x, y: pdf.cursor(), size: labelSize, font: labelFont, color: labelColor)
+            pdf.gap(step)
+        }
+        let baseline = pdf.cursor()
+        pdf.textAt(lines.last ?? "", x: x, y: baseline, size: labelSize, font: labelFont,
+                   color: labelColor)
+        pdf.textAt(row.value, x: x, y: baseline, size: valueSize, font: .helveticaBold,
+                   color: valueColor, align: .right, boxWidth: width)
     }
 
     /// A row of figures across the full width, under a heading.
@@ -241,6 +305,15 @@ enum Layout {
         pdf.move(to: top - 44)
     }
 
+    /// One footnote from `y` down, wrapped short of the page number when there
+    /// is one beside it, rather than running under it and off the edge.
+    /// Returns the baseline for the next.
+    static func footnote(_ doc: Document, _ note: String, y: Double, pages: Int) -> Double {
+        let room = doc.contentWidth() - (pages > 1 ? 64 : 0)
+        return wrapped(doc, note, x: doc.left(), y: y, width: room,
+                       size: 7.5, font: .helvetica, color: .grey(150), step: 10)
+    }
+
     /// The running foot: small print, then the page number.
     static func footer(_ pdf: Document, branding: Branding, caption: String = "") {
         let brand = branding
@@ -252,8 +325,7 @@ enum Layout {
                 doc.line(from: doc.left(), top, to: doc.right(), top, color: brand.hairline)
                 var y = 46.0
                 for note in brand.footnotes {
-                    doc.textAt(note, x: doc.left(), y: y, size: 7.5, font: .helvetica, color: .grey(150))
-                    y -= 10
+                    y = footnote(doc, note, y: y, pages: total)
                 }
                 top = y
             } else if !caption.isEmpty {

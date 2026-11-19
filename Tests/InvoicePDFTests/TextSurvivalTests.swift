@@ -136,6 +136,68 @@ final class TextSurvivalTests: XCTestCase {
         for word in tokens { XCTAssertTrue(all.contains(word), "lost \(word)") }
     }
 
+    // MARK: Labels, parties and the foot
+
+    /// A totals label too long for the room its figure leaves wraps, rather
+    /// than running under the figure and off the edge.
+    func testLongTotalsLabelsWrap() throws {
+        let label = words(20, "tl").joined(separator: " ")
+        let grand = words(16, "gl").joined(separator: " ")
+        let built = Invoice(branding: Branding(name: "Lachlan"), number: "INV-1", from: seller, to: buyer,
+                            items: [LineItem(description: "Tweed", amount: "£1.00")],
+                            totals: [(label, "£1,234,567.00")], total: [(grand, "£1,234,567,890.00")],
+                            supplyDate: "28 July 2026")
+        let all = try pages(try built.render()).joined()
+        for word in words(20, "tl") + words(16, "gl") { XCTAssertTrue(all.contains(word), "lost \(word)") }
+        XCTAssertTrue(all.contains("£1,234,567,890.00"))
+    }
+
+    /// The small print at the foot wraps short of the page number.
+    func testLongFootnotesWrap() throws {
+        let note = words(30, "f").joined(separator: " ")
+        let built = Invoice(branding: Branding(name: "Lachlan", footnotes: [note]), number: "INV-1",
+                            from: seller, to: buyer, items: [LineItem(description: "Tweed", amount: "£1.00")],
+                            supplyDate: "28 July 2026")
+        let all = try pages(try built.render()).joined()
+        for word in words(30, "f") { XCTAssertTrue(all.contains(word), "lost \(word)") }
+
+        let timesheet = Timesheet(branding: Branding(name: "Lachlan", footnotes: [note]), worker: seller,
+                                  period: "July", entries: [TimeEntry(date: "1 Jul", description: "x", hours: "1")])
+        let read = try pages(try timesheet.render()).joined()
+        for word in words(30, "f") { XCTAssertTrue(read.contains(word), "timesheet lost \(word)") }
+    }
+
+    /// A party with a long name and address on a statement, a timesheet or a
+    /// shipping document wraps inside its column.
+    func testLongPartiesWrapInTheirColumns() throws {
+        let long = Party(name: words(20, "pn").joined(separator: " "),
+                         address: [words(30, "pa").joined(separator: " ")], taxID: "DE811567890")
+        let tokens = words(20, "pn") + words(30, "pa")
+
+        let statement = Statement(branding: Branding(name: "L"), account: long, period: "July",
+                                  transactions: [Transaction(date: "1 Jul", description: "x")],
+                                  summary: [(words(20, "sm").joined(separator: " "), "£1,234.00"),
+                                            ("Terms", words(30, "sv").joined(separator: " "))],
+                                  closing: [(words(20, "cl").joined(separator: " "), "£1,234.00")],
+                                  reference: words(30, "sr").joined(separator: " "))
+        let read = try pages(try statement.render()).joined()
+        for word in tokens + words(30, "sr") + words(20, "sm") + words(30, "sv") + words(20, "cl") {
+            XCTAssertTrue(read.contains(word), "statement lost \(word)")
+        }
+
+        let royalty = RoyaltyStatement(branding: Branding(name: "L"), payee: long, period: "July",
+                                       lines: [RoyaltyLine(source: "Shop", title: "Track", net: "£1", earned: "£1")],
+                                       reconciliation: [(words(20, "rc").joined(separator: " "), "£1,234.00")])
+        let paid = try pages(try royalty.render()).joined()
+        for word in tokens + words(20, "rc") { XCTAssertTrue(paid.contains(word), "royalty lost \(word)") }
+
+        let consignment = Consignment(branding: Branding(name: "L"), number: "CI-1", exporter: seller,
+                                      consignee: long, deliverTo: long,
+                                      items: [ConsignmentItem(description: "Tweed", quantity: "1")])
+        let shipped = try pages(try consignment.render()).joined()
+        for word in tokens { XCTAssertTrue(shipped.contains(word), "shipping lost \(word)") }
+    }
+
     // MARK: Checking the drawn page
 
     /// A description that did not reach the page — cut, or never drawn — is

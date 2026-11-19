@@ -389,8 +389,7 @@ public struct Invoice: Sendable {
                 doc.line(from: doc.left(), 58, to: doc.right(), 58, color: brand.hairline)
                 var y = 46.0
                 for note in brand.footnotes {
-                    doc.textAt(note, x: doc.left(), y: y, size: 7.5, font: .helvetica, color: .grey(150))
-                    y -= 10
+                    y = Layout.footnote(doc, note, y: y, pages: total)
                 }
             }
             if total > 1 {
@@ -831,7 +830,15 @@ public struct Invoice: Sendable {
 
         for row in totals {
             pdf.breakIfNeeded(60)
-            pdf.cell(row.label, x: x, boxWidth: width, size: 9, font: .helvetica, color: branding.muted)
+            // A label too long for the room its figure leaves wraps rather
+            // than running under the figure and off the edge.
+            let room = max(width - pdf.width(of: row.value, size: 9) - 10, width * 0.3)
+            let label = pdf.lines(of: row.label, width: room, size: 9)
+            for line in label.dropLast() {
+                pdf.cell(line, x: x, boxWidth: width, size: 9, font: .helvetica, color: branding.muted)
+                pdf.gap(11)
+            }
+            pdf.cell(label.last ?? "", x: x, boxWidth: width, size: 9, font: .helvetica, color: branding.muted)
             pdf.cell(row.value, x: x, boxWidth: width, size: 9, font: .helvetica, color: branding.ink, align: .right)
             pdf.gap(15)
         }
@@ -846,10 +853,8 @@ public struct Invoice: Sendable {
         pdf.gap(20)
 
         for row in total {
-            let baseline = pdf.cursor()
-            pdf.textAt(row.label, x: x, y: baseline, size: 11, font: .helveticaBold, color: branding.ink)
-            pdf.textAt(row.value, x: x, y: baseline, size: 14, font: .helveticaBold,
-                       color: branding.ink, align: .right, boxWidth: width)
+            Layout.figure(pdf, row, x: x, width: width, labelSize: 11, valueSize: 14,
+                          labelColor: branding.ink, valueColor: branding.ink, step: 13)
             pdf.gap(12)
             pdf.line(from: x, pdf.cursor(), to: pdf.right(), pdf.cursor(), color: branding.hairline, thickness: 0.5)
             pdf.gap(14)

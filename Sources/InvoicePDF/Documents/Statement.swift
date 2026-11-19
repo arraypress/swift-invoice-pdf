@@ -202,22 +202,20 @@ public struct Statement: Sendable {
 
     private func accountBlock(_ pdf: Document) {
         let top = pdf.cursor()
+        let column = pdf.contentWidth() / 2
+        // Each block wraps inside its own column, so a long name or address
+        // grows downwards rather than into the summary or off the page.
+        let measure = summary.isEmpty ? pdf.contentWidth() : column - 20
 
         pdf.textAt("ACCOUNT", x: pdf.left(), y: top, size: 7, font: .helveticaBold, color: branding.muted)
-        pdf.textAt(account.name, x: pdf.left(), y: top - 15, size: 11, font: .helveticaBold, color: branding.ink)
-
-        var y = top - 28
-        for line in account.lines() {
-            pdf.textAt(line, x: pdf.left(), y: y, size: 8.5, font: .helvetica, color: branding.muted)
-            y -= 11
-        }
-        if !reference.isEmpty {
-            pdf.textAt(reference, x: pdf.left(), y: y, size: 8.5, font: .helvetica, color: branding.muted)
-            y -= 11
+        var y = Layout.wrapped(pdf, account.name, x: pdf.left(), y: top - 15, width: measure,
+                               size: 11, font: .helveticaBold, color: branding.ink, step: 13)
+        for line in account.lines() + (reference.isEmpty ? [] : [reference]) {
+            y = Layout.wrapped(pdf, line, x: pdf.left(), y: y, width: measure,
+                               size: 8.5, font: .helvetica, color: branding.muted, step: 11)
         }
 
         if !summary.isEmpty {
-            let column = pdf.contentWidth() / 2
 
             // The right column needs its own heading, exactly as the invoice
             // pairs BILLED TO with DETAILS. Without one the first summary row
@@ -228,11 +226,9 @@ public struct Statement: Sendable {
 
             var detailY = top - 15
             for row in summary {
-                pdf.textAt(row.label, x: pdf.left() + column + 20, y: detailY, size: 8.5,
-                           font: .helvetica, color: branding.muted)
-                pdf.textAt(row.value, x: pdf.left() + column + 20, y: detailY, size: 8.5,
-                           font: .helveticaBold, color: branding.ink, align: .right, boxWidth: column - 20)
-                detailY -= 12
+                detailY = Layout.labelled(pdf, row, x: pdf.left() + column + 20, y: detailY,
+                                          width: column - 20, size: 8.5, labelColor: branding.muted,
+                                          valueColor: branding.ink, step: 12)
             }
             y = min(y, detailY)
         }
@@ -251,10 +247,8 @@ public struct Statement: Sendable {
         pdf.gap(20)
 
         for row in closing {
-            let baseline = pdf.cursor()
-            pdf.textAt(row.label, x: x, y: baseline, size: 10.5, font: .helveticaBold, color: branding.ink)
-            pdf.textAt(row.value, x: x, y: baseline, size: 13, font: .helveticaBold,
-                       color: branding.ink, align: .right, boxWidth: width)
+            Layout.figure(pdf, row, x: x, width: width, labelSize: 10.5, valueSize: 13,
+                          labelColor: branding.ink, valueColor: branding.ink, step: 13)
             pdf.gap(12)
             pdf.line(from: x, pdf.cursor(), to: pdf.right(), pdf.cursor(),
                      color: branding.hairline, thickness: 0.5)
