@@ -1,5 +1,5 @@
 {
-  "originHash" : "00cd3af3337c046e795fe6d426317cec083804308c506cdc369796e5af25a56d",
+  "originHash" : "8e2871e4371c9915b0e208c8e0e4691c7344b54ee41621ccf52b42a4c818c824",
   "pins" : [
     {
       "identity" : "swift-countries",
@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/arraypress/swift-money.git",
       "state" : {
-        "revision" : "70865dc13a979dfa8b1e192fc73dec6271ea8524",
-        "version" : "1.1.1"
+        "revision" : "5e78cea373e24e3859f5d309167ed02ec58f1033",
+        "version" : "1.2.0"
       }
     },
     {
@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/arraypress/swift-text-pdf.git",
       "state" : {
-        "revision" : "95e49306c8aca437de2faf1ddf0c10ab9a1516e8",
-        "version" : "0.3.0"
+        "revision" : "0898750a251bb4a00e5a243f0db3a4db0197ed9b",
+        "version" : "0.5.0"
       }
     }
   ],
