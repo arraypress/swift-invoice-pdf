@@ -320,6 +320,18 @@ public struct Invoice: Sendable {
             missing.append("The total \"\(line.value)\" did not reach the page.")
         }
 
+        // Every line item, whole. Article 226 asks for the quantity and nature
+        // of what was supplied, and a description cut to fit its column — or a
+        // note that ran off the page — passes every check that only reads the
+        // data. Whitespace-insensitive, because a description wraps.
+        let squeezedPage = DrawnParticulars.page(document.drawnText)
+        for item in items {
+            for (what, text) in [("description", item.description), ("note", item.note)]
+            where !DrawnParticulars.shows(text, on: squeezedPage) {
+                missing.append("The item \(what) \"\(text)\" did not reach the page in full.")
+            }
+        }
+
         // Both parties, as printed. Article 226 asks for the supplier's name,
         // address and VAT number on the face of the invoice; checking that
         // the fields were *set* is what let a template that never drew the
@@ -642,6 +654,11 @@ public struct Invoice: Sendable {
     /// quiet type a meta line gets. The grid itself matches `Table`'s
     /// drawing — the same heights, rules and padding — so it sits beside
     /// every other table in the family without looking like a cousin.
+    ///
+    /// Nothing in a row is ever cut. A description too long for its column
+    /// wraps and the row grows; so does a note. A row is kept whole on a page
+    /// unless it is taller than a page, when it flows on under the repeated
+    /// header. A line of one row reads exactly as it always did.
     private func itemGrid(
         _ pdf: Document,
         headers: [String],
@@ -655,38 +672,35 @@ public struct Invoice: Sendable {
         // description's baseline.
         let noteExtra = 11.0
         let noteDrop = 9.5
+        let noteSize = 7.5
+        // From one wrapped line to the next: the type's own spacing, not a
+        // row's, or three lines of one description read as three items.
+        let lineStep = 11.5
+        let noteStep = 9.5
         let padding = 6.0
         let widths = fractions.map { $0 * pdf.contentWidth() }
+        let band = Font.helvetica.bandBaseline(bandHeight: height, size: size)
 
-        func line(_ cells: [String], font: Font, color: Color?) {
-            var x = pdf.left()
-            let y = pdf.cursor()
-            let last = cells.count - 1
+        func inner(_ index: Int, of count: Int) -> Double {
+            let leading = index == 0 ? 0 : padding
+            let trailing = index == count - 1 ? 0 : padding
+            return max(widths[index] - leading - trailing, 1)
+        }
 
-            for (index, cell) in cells.enumerated() {
-                let width = index < widths.count ? widths[index] : 0
-                guard width > 0 else { continue }
-
-                let leading = index == 0 ? 0 : padding
-                let trailing = index == last ? 0 : padding
-                let inner = width - leading - trailing
-
-                pdf.textAt(
-                    pdf.fit(cell, into: inner, size: size, font: font),
-                    x: x + leading,
-                    y: y - font.bandBaseline(bandHeight: height, size: size),
-                    size: size, font: font, color: color,
-                    align: aligns[index] ?? .left, boxWidth: inner
-                )
-                x += width
-            }
+        func x(_ index: Int) -> Double {
+            pdf.left() + widths.prefix(index).reduce(0, +) + (index == 0 ? 0 : padding)
         }
 
         func header() {
             pdf.rect(x: pdf.left(), y: pdf.cursor() - height,
                      width: pdf.contentWidth(), height: height, color: branding.wash)
             let top = pdf.cursor()
-            line(headers, font: .helveticaBold, color: .grey(30))
+            for (index, cell) in headers.enumerated() where index < widths.count {
+                pdf.textAt(cell, x: x(index),
+                           y: top - Font.helveticaBold.bandBaseline(bandHeight: height, size: size),
+                           size: size, font: .helveticaBold, color: .grey(30),
+                           align: aligns[index] ?? .left, boxWidth: inner(index, of: headers.count))
+            }
             pdf.gap(height)
             pdf.line(from: pdf.left(), top, to: pdf.right(), top, color: .grey(60), thickness: 0.75)
             pdf.line(from: pdf.left(), pdf.cursor(), to: pdf.right(), pdf.cursor(),
@@ -695,27 +709,67 @@ public struct Invoice: Sendable {
 
         header()
         for row in rows {
-            let tall = row.note.isEmpty ? height : height + noteExtra
+            let count = row.cells.count
+            let cells = row.cells.enumerated().map { index, cell in
+                index < widths.count
+                    ? pdf.lines(of: cell, width: inner(index, of: count), size: size, font: .helvetica)
+                    : []
+            }
+            let notes = row.note.isEmpty
+                ? [] : pdf.lines(of: row.note, width: widths[0], size: noteSize, font: .helvetica)
+
+            // Each line of the row as an offset below its top, so the row can
+            // be measured whole and, when it is taller than a page, cut
+            // between lines rather than through one.
+            var lines: [(offset: Double, draw: (Double) -> Void)] = []
+            let depth = max(1, cells.map(\.count).max() ?? 1)
+            for line in 0 ..< depth {
+                let offset = band + Double(line) * lineStep
+                lines.append((offset, { baseline in
+                    // The description last, so its lines are drawn one after
+                    // another and the page can be checked for it whole.
+                    let order = Array(cells.indices.dropFirst()) + [0]
+                    for index in order where line < cells[index].count {
+                        let pieces = cells[index]
+                        pdf.textAt(pieces[line], x: x(index), y: baseline, size: size,
+                                   font: .helvetica, align: aligns[index] ?? .left,
+                                   boxWidth: inner(index, of: count))
+                    }
+                }))
+            }
+            for (index, note) in notes.enumerated() {
+                let offset = band + Double(depth - 1) * lineStep + noteDrop + Double(index) * noteStep
+                lines.append((offset, { baseline in
+                    pdf.textAt(note, x: pdf.left(), y: baseline, size: noteSize,
+                               font: .helvetica, color: self.branding.muted)
+                }))
+            }
+            let tall = height + Double(depth - 1) * lineStep
+                + (notes.isEmpty ? 0 : noteExtra + Double(notes.count - 1) * noteStep)
 
             // Break with the header repeated, exactly as `Table` does, or
             // everything past page one is a column of unlabelled numbers.
-            if pdf.remaining() < tall + height {
+            let roomOnAFreshPage = pdf.height() - pdf.margin * 2 - height
+            if pdf.remaining() < tall + height,
+               tall + height <= roomOnAFreshPage || pdf.remaining() < height * 2 {
                 pdf.pageBreak()
                 header()
             }
 
-            let top = pdf.cursor()
-            line(row.cells, font: .helvetica, color: nil)
-
-            if !row.note.isEmpty {
-                let baseline = top - Font.helvetica.bandBaseline(bandHeight: height, size: size)
-                pdf.textAt(
-                    pdf.fit(row.note, into: widths[0], size: 7.5, font: .helvetica),
-                    x: pdf.left(), y: baseline - noteDrop,
-                    size: 7.5, font: .helvetica, color: branding.muted
-                )
+            var top = pdf.cursor()
+            var shift = 0.0
+            for line in lines {
+                // A row taller than a page carries on under the header on the
+                // next one, rather than running off the foot of this one.
+                if top - (line.offset - shift) < pdf.margin + 4, line.offset > band {
+                    pdf.pageBreak()
+                    header()
+                    top = pdf.cursor()
+                    shift = line.offset - band
+                }
+                line.draw(top - (line.offset - shift))
             }
-            pdf.move(to: top - tall)
+            pdf.move(to: top - (tall - shift))
         }
     }
 
@@ -897,24 +951,39 @@ public struct Invoice: Sendable {
 
         let top = pdf.cursor()
 
-        if !trimmed.isEmpty {
+        // Notes longer than the room left carry on over the page — and then
+        // the code has to go down first, on this page, beside where they
+        // start: drawn after them it would land on the next page at this
+        // page's height.
+        let overflows = !trimmed.isEmpty
+            && pdf.blockHeight(trimmed, size: 8.5, width: width, leading: 12) > pdf.remaining()
+
+        if !trimmed.isEmpty, !overflows {
             pdf.block(trimmed, x: pdf.left(), width: width,
                       size: 8.5, font: .helvetica, color: branding.ink, leading: 12)
         }
 
-        guard let paymentCode else { return }
-
-        // Drawn from the top of the block rather than after it, so a long
-        // payment note does not push the code down the page on its own.
-        let drawn = pdf.qr(paymentCode.payload, x: pdf.right() - code, y: top - code,
+        var drawn = false
+        if let paymentCode {
+            // Drawn from the top of the block rather than after it, so a long
+            // payment note does not push the code down the page on its own.
+            drawn = pdf.qr(paymentCode.payload, x: pdf.right() - code, y: top - code,
                            size: code, color: branding.ink)
+            if drawn {
+                pdf.textAt(paymentCode.caption, x: pdf.right() - code, y: top - code - 11,
+                           size: 7, color: branding.muted, align: .center, boxWidth: code)
+            }
+        }
 
-        if drawn {
-            pdf.textAt(paymentCode.caption, x: pdf.right() - code, y: top - code - 11,
-                       size: 7, color: branding.muted, align: .center, boxWidth: code)
+        if overflows {
+            Layout.flowing(pdf, trimmed, x: pdf.left(), width: width,
+                           size: 8.5, color: branding.ink, leading: 12)
+            return
         }
 
         // Whichever ran longer decides where the page carries on.
-        pdf.move(to: min(pdf.cursor(), top - code - (drawn ? 18 : 0)))
+        if paymentCode != nil {
+            pdf.move(to: min(pdf.cursor(), top - code - (drawn ? 18 : 0)))
+        }
     }
 }

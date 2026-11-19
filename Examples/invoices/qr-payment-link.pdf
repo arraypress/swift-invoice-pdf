@@ -286,13 +286,6 @@ Q
 q
 BT
 /F1 9.00 Tf
-48.00 570.66 Td
-(Document generation licence — annual) Tj
-ET
-Q
-q
-BT
-/F1 9.00 Tf
 320.10 570.66 Td
 (1) Tj
 ET
@@ -314,8 +307,8 @@ Q
 q
 BT
 /F1 9.00 Tf
-48.00 548.66 Td
-(Template design and setup) Tj
+48.00 570.66 Td
+(Document generation licence — annual) Tj
 ET
 Q
 q
@@ -340,18 +333,18 @@ BT
 ET
 Q
 q
+BT
+/F1 9.00 Tf
+48.00 548.66 Td
+(Template design and setup) Tj
+ET
+Q
+q
 0.451 0.451 0.451 rg
 BT
 /F1 7.50 Tf
 48.00 539.16 Td
 (Six hours, 12–13 July) Tj
-ET
-Q
-q
-BT
-/F1 9.00 Tf
-48.00 515.66 Td
-(Priority support — first year) Tj
 ET
 Q
 q
@@ -373,6 +366,13 @@ BT
 /F1 9.00 Tf
 514.75 515.66 Td
 (£180.00) Tj
+ET
+Q
+q
+BT
+/F1 9.00 Tf
+48.00 515.66 Td
+(Priority support — first year) Tj
 ET
 Q
 q

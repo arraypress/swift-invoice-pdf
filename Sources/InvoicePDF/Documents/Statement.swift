@@ -303,7 +303,7 @@ public struct Statement: Sendable {
                  color: branding.hairline, thickness: 0.5)
         pdf.gap(6)
 
-        pdf.block(trimmed, x: pdf.left(), width: pdf.contentWidth(),
-                  size: 8.5, font: .helvetica, color: branding.ink, leading: 12)
+        Layout.flowing(pdf, trimmed, x: pdf.left(), width: pdf.contentWidth(),
+                       size: 8.5, color: branding.ink, leading: 12)
     }
 }

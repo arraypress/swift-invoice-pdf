@@ -193,8 +193,28 @@ enum Layout {
             pdf.gap(14)
         }
 
-        pdf.block(trimmed, x: pdf.left(), width: pdf.contentWidth(),
-                  size: 8.5, font: .helvetica, color: branding.ink, leading: 12)
+        flowing(pdf, trimmed, x: pdf.left(), width: pdf.contentWidth(),
+                size: 8.5, color: branding.ink, leading: 12)
+    }
+
+    /// Wrapped text that carries on over a page break.
+    ///
+    /// `block` sets a paragraph wherever the cursor is and keeps going, so a
+    /// note longer than the room left on the page runs off its foot — where
+    /// the reader clips it and the end of somebody's payment terms is simply
+    /// gone. This breaks the page between lines instead. Text that fits is
+    /// set exactly as `block` would set it.
+    static func flowing(_ pdf: Document, _ text: String, x: Double, width: Double,
+                        size: Double, font: Font = .helvetica, color: Color, leading: Double) {
+        for paragraph in text.components(separatedBy: "\n") {
+            let lines = paragraph.isEmpty
+                ? [""] : pdf.lines(of: paragraph, width: width, size: size, font: font)
+            for line in lines {
+                pdf.breakIfNeeded(leading)
+                pdf.block(line, x: x, width: width, size: size, font: font,
+                          color: color, leading: leading)
+            }
+        }
     }
 
     /// Ruled lines for a signature and a date.
