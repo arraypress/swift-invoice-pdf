@@ -15,12 +15,14 @@ extension Party {
 
     /// The address block, with a link where a line has somewhere to go.
     public func linkedLines(vatLabel: String = "VAT") -> [(text: String, url: String)] {
-        PartyLines.linked(address: address, email: email, taxID: taxID, vatLabel: vatLabel)
+        PartyLines.linked(address: address, email: email, taxID: taxID, vatLabel: vatLabel,
+                          registration: registration ?? "")
     }
 
     /// The address block, one string per line.
     public func lines(vatLabel: String = "VAT") -> [String] {
-        PartyLines.plain(address: address, email: email, taxID: taxID, vatLabel: vatLabel)
+        PartyLines.plain(address: address, email: email, taxID: taxID, vatLabel: vatLabel,
+                         registration: registration ?? "")
     }
 }
 

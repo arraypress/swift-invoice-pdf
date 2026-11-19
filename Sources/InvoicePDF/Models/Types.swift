@@ -40,18 +40,28 @@ public struct Party: Sendable, Equatable, Codable {
     /// "Sacramento, CA" has a country code in it that means Canada.
     public let country: Country?
 
+    /// A company registration, printed as written — `Company no. 01234567`,
+    /// `HRB 12345 B`, `KvK 12345678`. The wording is the registry's, not
+    /// ours, so the label travels with the number.
+    ///
+    /// Optional rather than an empty string so a party decoded from JSON
+    /// written before it existed still decodes.
+    public let registration: String?
+
     public init(
         name: String,
         address: [String] = [],
         email: String = "",
         taxID: String = "",
-        country: Country? = nil
+        country: Country? = nil,
+        registration: String? = nil
     ) {
         self.name = name
         self.address = address
         self.email = email
         self.taxID = taxID
         self.country = country
+        self.registration = registration
     }
 }
 

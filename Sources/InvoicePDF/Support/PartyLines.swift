@@ -18,20 +18,26 @@ enum PartyLines {
     /// is read from a screen at least as often as from paper, and the
     /// supplier's email address is the one thing on it a recipient
     /// actually needs to act on when something is wrong.
-    static func linked(address: [String], email: String, taxID: String, vatLabel: String) -> [(text: String, url: String)] {
+    static func linked(
+        address: [String], email: String, taxID: String, vatLabel: String, registration: String = ""
+    ) -> [(text: String, url: String)] {
         var out = address.map { (text: $0, url: "") }
         if !email.trimmingCharacters(in: .whitespaces).isEmpty {
             out.append((email, "mailto:\(email.trimmingCharacters(in: .whitespaces))"))
         }
         if !taxID.isEmpty { out.append(("\(vatLabel) \(taxID)", "")) }
+        out.append((registration, ""))
         return out.filter { !$0.text.trimmingCharacters(in: .whitespaces).isEmpty }
     }
 
     /// The block as plain strings, blank lines dropped.
-    static func plain(address: [String], email: String, taxID: String, vatLabel: String) -> [String] {
+    static func plain(
+        address: [String], email: String, taxID: String, vatLabel: String, registration: String = ""
+    ) -> [String] {
         var lines = address
         if !email.isEmpty { lines.append(email) }
         if !taxID.isEmpty { lines.append("\(vatLabel) \(taxID)") }
+        lines.append(registration)
         return lines.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
     }
 }

@@ -234,7 +234,11 @@ Where nothing is payable, `carriedForwardNote` prints the reason on the document
 
 A packing list carries no prices at all. That is the difference between the two documents, not a formatting option: the list is read by people handling the boxes, and in some trades it reaches the buyer's customer.
 
-`complianceWarnings(verifying:)` checks the finished document rather than the data. That distinction matters on an invoice: a recipient's input-tax deduction turns on wording being *printed*, and a template that stopped drawing it would pass every check that only reads the invoice's fields.
+`complianceWarnings(verifying:)` checks the finished document rather than the data. That distinction matters on an invoice: a recipient's input-tax deduction turns on wording being *printed*, and a template that stopped drawing it would pass every check that only reads the invoice's fields. On a tax document it looks for both parties on the page — name, every address line, VAT number and registration — as well as the VAT wording, the number, the date of supply and the total.
+
+This is not hypothetical. Until November 2026 the template never drew the seller at all — the masthead showed the brand name, and the supplier's legal name, address and VAT number were nowhere on the page — and every check passed, because they only asked whether the fields were set. The seller now prints in its own column beside the buyer (headed `FROM`, or `CUSTOMER` on a self-billed invoice and `BUYER` on a purchase order), and a template that stops drawing it fails the check.
+
+`Party(registration:)` carries a company registration, printed as written — `Company no. 01234567`, `HRB 12345 B` — since the wording belongs to the registry.
 
 `complianceWarnings()` checks what the template can see: supplier tax number, both addresses, a sequential number, the date of supply, the customer VAT number where the treatment requires it, and — for a credit note — the invoice it reverses.
 

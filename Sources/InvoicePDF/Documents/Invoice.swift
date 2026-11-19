@@ -319,12 +319,25 @@ public struct Invoice: Sendable {
         for line in total where !page.contains(line.value) {
             missing.append("The total \"\(line.value)\" did not reach the page.")
         }
+
+        // Both parties, as printed. Article 226 asks for the supplier's name,
+        // address and VAT number on the face of the invoice; checking that
+        // the fields were *set* is what let a template that never drew the
+        // supplier pass for as long as it did.
+        if kind.isTaxDocument {
+            let squeezed = DrawnParticulars.page(document.drawnText)
+            for party in [from, to] {
+                missing += DrawnParticulars.missing(
+                    name: party.name, address: party.address, taxID: party.taxID,
+                    registration: party.registration ?? "", on: squeezed
+                )
+            }
+        }
         return missing
     }
 
     // MARK: Rendering
 
-    /// Lays the document out.
     /// Lays the document out.
     ///
     /// The font, if any, has to be in place before anything is drawn — text is
@@ -465,34 +478,45 @@ public struct Invoice: Sendable {
         )
     }
 
+    /// The heading over the issuer's block.
+    ///
+    /// On most kinds the issuer is the seller. On a self-billed invoice and a
+    /// purchase order it is the customer, and the heading has to say so or
+    /// the two blocks read the wrong way round.
+    var fromHeading: String {
+        switch kind {
+        case .selfBilling: return "CUSTOMER"
+        case .purchaseOrder: return "BUYER"
+        default: return "FROM"
+        }
+    }
+
+    /// The heading over the recipient's block.
+    var toHeading: String {
+        switch kind {
+        case .remittance: return "PAID TO"
+        case .selfBilling, .purchaseOrder: return "SUPPLIER"
+        case .deliveryNote: return "DELIVER TO"
+        default: return "BILLED TO"
+        }
+    }
+
+    /// Whether the issuer has anything to print.
+    private var showsFrom: Bool {
+        !from.name.trimmingCharacters(in: .whitespaces).isEmpty || !from.linkedLines().isEmpty
+    }
+
+    /// Issuer, recipient and details, side by side.
+    ///
+    /// The issuer's block is the one an invoice cannot do without: the
+    /// supplier's name, address and VAT number are mandatory particulars, and
+    /// a brand name in the masthead is none of them — "Meridian" on a logo is
+    /// not "Meridian Studio Ltd, 71–75 Shelton Street, GB123456789". Each
+    /// column wraps its own lines, so a long address grows downwards rather
+    /// than into its neighbour.
     private func parties(_ pdf: Document) {
         let top = pdf.cursor()
-        let column = pdf.contentWidth() / 2
-
-        let heading: String
-        switch kind {
-        case .remittance: heading = "PAID TO"
-        case .selfBilling, .purchaseOrder: heading = "SUPPLIER"
-        case .deliveryNote: heading = "DELIVER TO"
-        default: heading = "BILLED TO"
-        }
-        pdf.textAt(heading, x: pdf.left(), y: top, size: 7, font: .helveticaBold, color: branding.muted)
-        pdf.textAt(to.name, x: pdf.left(), y: top - 16, size: 11, font: .helveticaBold, color: branding.ink)
-
-        var y = top - 29
-        for line in to.linkedLines() {
-            if line.url.isEmpty {
-                pdf.textAt(line.text, x: pdf.left(), y: y, size: 9,
-                           font: .helvetica, color: branding.muted)
-            } else {
-                pdf.linked(line.text, url: line.url, x: pdf.left(), y: y, size: 9,
-                           font: .helvetica, color: branding.muted)
-            }
-            y -= 11.5
-        }
-
-        let detailX = pdf.left() + column + 20
-        let detailWidth = column - 20
+        let gutter = 20.0
 
         // The supply date is a mandatory particular in its own right and the
         // one most often left off, so it is added rather than relying on the
@@ -505,18 +529,75 @@ public struct Invoice: Sendable {
             rows.append((label: kind == .creditNote ? "Original invoice" : "Reference", value: reference))
         }
 
+        let count = max(2, (showsFrom ? 1 : 0) + 1 + (rows.isEmpty ? 0 : 1))
+        let width = (pdf.contentWidth() - gutter * Double(count - 1)) / Double(count)
+        var x = pdf.left()
+        var y = top
+
+        if showsFrom {
+            y = min(y, party(pdf, from, heading: fromHeading, x: x, width: width, top: top))
+            x += width + gutter
+        }
+        y = min(y, party(pdf, to, heading: toHeading, x: x, width: width, top: top))
+        x += width + gutter
+
         if !rows.isEmpty {
-            pdf.textAt("DETAILS", x: detailX, y: top, size: 7, font: .helveticaBold, color: branding.muted)
-            var detailY = top - 16
-            for row in rows {
-                pdf.textAt(row.label, x: detailX, y: detailY, size: 9, font: .helvetica, color: branding.muted)
-                pdf.textAt(row.value, x: detailX, y: detailY, size: 9, font: .helveticaBold,
-                           color: branding.ink, align: .right, boxWidth: detailWidth)
-                detailY -= 13
-            }
-            y = min(y, detailY)
+            y = min(y, detailRows(pdf, rows, x: pdf.right() - width, width: width, top: top))
         }
         pdf.move(to: y - 18)
+    }
+
+    /// One party's block. Returns the y below its last line.
+    private func party(_ pdf: Document, _ party: Party, heading: String,
+                       x: Double, width: Double, top: Double) -> Double {
+        pdf.textAt(heading, x: x, y: top, size: 7, font: .helveticaBold, color: branding.muted)
+
+        var y = top - 16
+        for line in pdf.lines(of: party.name, width: width, size: 11, font: .helveticaBold) {
+            pdf.textAt(line, x: x, y: y, size: 11, font: .helveticaBold, color: branding.ink)
+            y -= 13
+        }
+
+        for line in party.linkedLines() {
+            for piece in pdf.lines(of: line.text, width: width, size: 9, font: .helvetica) {
+                if line.url.isEmpty {
+                    pdf.textAt(piece, x: x, y: y, size: 9, font: .helvetica, color: branding.muted)
+                } else {
+                    pdf.linked(piece, url: line.url, x: x, y: y, size: 9,
+                               font: .helvetica, color: branding.muted)
+                }
+                y -= 11.5
+            }
+        }
+        return y
+    }
+
+    /// Label and value pairs. A value too wide to sit beside its label drops
+    /// to the line below rather than printing over it.
+    private func detailRows(_ pdf: Document, _ rows: [(label: String, value: String)],
+                            x: Double, width: Double, top: Double) -> Double {
+        pdf.textAt("DETAILS", x: x, y: top, size: 7, font: .helveticaBold, color: branding.muted)
+
+        var y = top - 16
+        for row in rows {
+            pdf.textAt(row.label, x: x, y: y, size: 9, font: .helvetica, color: branding.muted)
+
+            let room = width - pdf.width(of: row.label, size: 9, font: .helvetica) - 8
+            if pdf.width(of: row.value, size: 9, font: .helveticaBold) > room {
+                y -= 12
+                for piece in pdf.lines(of: row.value, width: width, size: 9, font: .helveticaBold) {
+                    pdf.textAt(piece, x: x, y: y, size: 9, font: .helveticaBold,
+                               color: branding.ink, align: .right, boxWidth: width)
+                    y -= 12
+                }
+                y -= 1
+            } else {
+                pdf.textAt(row.value, x: x, y: y, size: 9, font: .helveticaBold,
+                           color: branding.ink, align: .right, boxWidth: width)
+                y -= 13
+            }
+        }
+        return y
     }
 
     private func itemTable(_ pdf: Document) {
