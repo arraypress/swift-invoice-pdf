@@ -50,12 +50,17 @@ for treatment in VatTreatment.allCases {
             )
 
             // With every optional piece and then with none, since an element
-            // out of place only fails where it is present.
-            for (suffix, reference, due) in [
-                ("full", "PO-4471", Optional(issued.addingTimeInterval(30 * 86_400))),
-                ("bare", "", nil),
+            // out of place only fails where it is present — and a credit and
+            // a debit note, whose reference is the preceding invoice (BG-3).
+            let due = Optional(issued.addingTimeInterval(30 * 86_400))
+            for (suffix, kind, reference, due) in [
+                ("full", DocumentKind.invoice, "PO-4471", due),
+                ("bare", .invoice, "", nil),
+                ("credit", .creditNote, "INV-2026-0038", due),
+                ("debit", .debitNote, "INV-2026-0038", due),
             ] {
                 let invoice = Invoice(
+                    kind: kind,
                     branding: Branding(name: "Meridian Studio Ltd"),
                     number: "INV-2026-0042", from: seller, to: buyer,
                     items: sums.items(), totals: sums.rows(),
@@ -64,7 +69,7 @@ for treatment in VatTreatment.allCases {
                 )
 
                 var details = sums.facturX(profile: profile, issued: issued, due: due,
-                                           buyerReference: reference)
+                                           buyerReference: kind == .invoice ? reference : "")
                 if treatment == .intraCommunitySupply {
                     details.delivered = issued
                     details.deliveredTo = buyer.country

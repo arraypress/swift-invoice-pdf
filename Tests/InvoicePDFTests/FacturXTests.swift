@@ -164,6 +164,73 @@ final class FacturXTests: XCTestCase {
         }
     }
 
+    // MARK: The preceding invoice
+
+    /// Credit and debit notes, with the invoice they correct as the reference.
+    private func correcting(_ kind: DocumentKind, _ profile: FacturX.Profile) throws -> String {
+        let note = Invoice(
+            kind: kind,
+            branding: Branding(name: "Meridian Studio Ltd"),
+            number: "CRN-2026-0004",
+            from: Party(name: "Meridian Studio Ltd", address: ["71 Shelton Street", "London"],
+                        taxID: "GB123456789", country: Country("GB")),
+            to: Party(name: "Klangwerk GmbH", address: ["Oranienburger Str. 87", "Berlin"],
+                      taxID: "DE811567890", country: Country("DE")),
+            items: [LineItem(description: "Licence", amount: "£749.00")],
+            reference: "INV-2026-0042"
+        )
+        return try text(try note.facturX(details(profile: profile)))
+    }
+
+    /// The markup without the indentation between elements.
+    private func squeezed(_ xml: String) -> String {
+        xml.replacingOccurrences(of: ">\\s+<", with: "><", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    func testACreditNoteNamesThePrecedingInvoiceNotAnOrder() throws {
+        // BG-3, in the settlement and after the summation, which is where the
+        // CII sequence puts it. Written as BuyerOrderReferencedDocument it
+        // claimed a purchase order called INV-2026-0042 and no invoice at all.
+        for kind in [DocumentKind.creditNote, .debitNote] {
+            let xml = try correcting(kind, .basicWithoutLines)
+            let settlement = xml.components(separatedBy: "<ram:ApplicableHeaderTradeSettlement>")[1]
+            let after = settlement.components(
+                separatedBy: "</ram:SpecifiedTradeSettlementHeaderMonetarySummation>")[1]
+
+            XCTAssertTrue(squeezed(after).hasPrefix(
+                "<ram:InvoiceReferencedDocument><ram:IssuerAssignedID>INV-2026-0042"
+                + "</ram:IssuerAssignedID></ram:InvoiceReferencedDocument>"
+                + "</ram:ApplicableHeaderTradeSettlement>"), "\(kind.rawValue): \(after)")
+            XCTAssertFalse(xml.contains("BuyerOrderReferencedDocument"), kind.rawValue)
+            XCTAssertTrue(XMLParser(data: Data(xml.utf8)).parse(), kind.rawValue)
+        }
+    }
+
+    func testMinimumHasNoPlaceForThePrecedingInvoice() throws {
+        // Not in the profile, and not to be smuggled in as an order either.
+        for kind in [DocumentKind.creditNote, .debitNote] {
+            let xml = try correcting(kind, .minimum)
+            XCTAssertFalse(xml.contains("InvoiceReferencedDocument"), kind.rawValue)
+            XCTAssertFalse(xml.contains("BuyerOrderReferencedDocument"), kind.rawValue)
+        }
+    }
+
+    func testAnInvoicesReferenceIsStillTheOrder() throws {
+        for profile in FacturX.Profile.allCases {
+            for kind in [DocumentKind.invoice, .proforma, .selfBilling] {
+                let xml = try text(try invoice(kind: kind).facturX(details(profile: profile)))
+                let agreement = xml.components(separatedBy: "</ram:BuyerTradeParty>")[1]
+                    .components(separatedBy: "</ram:ApplicableHeaderTradeAgreement>")[0]
+                XCTAssertEqual(squeezed(agreement),
+                               "<ram:BuyerOrderReferencedDocument><ram:IssuerAssignedID>PO-4471"
+                               + "</ram:IssuerAssignedID></ram:BuyerOrderReferencedDocument>",
+                               "\(kind.rawValue) \(profile.name)")
+                XCTAssertFalse(xml.contains("InvoiceReferencedDocument"), kind.rawValue)
+            }
+        }
+    }
+
     func testWhatIsNotAnInvoiceIsRefused() throws {
         // Giving a delivery note an invoice code to make the file generate
         // would put a document into somebody's ledger as a bill.

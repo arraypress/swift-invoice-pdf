@@ -114,7 +114,7 @@ The XML goes through the published conformance tools, not just our own tests:
 Scripts/validate-facturx.sh
 ```
 
-It fetches the UN/CEFACT **CII D16B schema** and the **Factur-X profile rules** as Schematron, generates a document for every VAT treatment, profile and currency, and marks each one. Nothing is uploaded — the artefacts are public, the invoices stay on your machine. Needs `python3` and `xmllint`, both of which ship with macOS; Saxon arrives through pip, so there is no JDK.
+It fetches the UN/CEFACT **CII D16B schema** and the **Factur-X profile rules** as Schematron, generates a document for every VAT treatment, profile and currency — as an invoice, a credit note and a debit note — and marks each one. Nothing is uploaded — the artefacts are public, the invoices stay on your machine. Needs `python3` and `xmllint`, both of which ship with macOS; Saxon arrives through pip, so there is no JDK.
 
 The first run of it found five things this library got wrong, all of which looked right and passed every test:
 
@@ -125,6 +125,8 @@ The first run of it found five things this library got wrong, all of which looke
 | **Minimum** | Carried the buyer's address and tax registration, neither of which that profile permits. |
 | **BR-IC-11/12** | An intra-community supply claimed a zero rate without saying which border the goods crossed or when. `FacturX(delivered:deliveredTo:)` now carries both, and the document is refused without them. |
 | **BR-DEC-09…20** | EN 16931 caps every document amount at **two** decimals whatever the currency's minor unit is — so an e-invoice in Kuwaiti dinars is impossible, and is now refused rather than quietly rounded. |
+
+Found later, by a port of this library — valid against both, and wrong: a credit note's reference to the invoice it reverses was written as `BuyerOrderReferencedDocument`, a purchase order. It is now **BG-3**, `InvoiceReferencedDocument` at the end of the settlement, on credit and debit notes in Basic WL; Minimum has no place for it, so it is left to the page. On every other kind the reference is still the buyer's order.
 
 ## Money, and how many decimals it has
 

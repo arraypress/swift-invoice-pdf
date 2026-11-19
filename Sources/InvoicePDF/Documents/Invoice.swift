@@ -179,7 +179,11 @@ public struct Invoice: Sendable {
     public let supplyDate: String
 
     /// The document this one refers to — the original invoice for a credit
-    /// note, or the overdue invoice for a reminder.
+    /// or debit note, the overdue invoice for a reminder, the buyer's order
+    /// on an invoice.
+    ///
+    /// The e-invoice writes it as what it is for the kind: the preceding
+    /// invoice (BG-3) on a credit or debit note, the order (BT-13) otherwise.
     public let reference: String
 
     /// Print the German wording as well as the English.

@@ -493,12 +493,20 @@ enum FacturXWriter {
             </ram:ApplicableHeaderTradeAgreement>
         """
 
-        if !invoice.reference.isEmpty {
+        // A credit or debit note's reference is the invoice it corrects, and
+        // that is BG-3, the preceding invoice — in the settlement, below. Only
+        // on the other kinds is the reference the buyer's order, BT-13.
+        // Written as an order reference, a credit note pointed at a purchase
+        // order that never existed and at no invoice at all.
+        let reference = invoice.reference.trimmingCharacters(in: .whitespaces)
+        let corrects = invoice.kind == .creditNote || invoice.kind == .debitNote
+
+        if !reference.isEmpty, !corrects {
             trade = trade.replacingOccurrences(
                 of: "</ram:ApplicableHeaderTradeAgreement>",
                 with: """
                       <ram:BuyerOrderReferencedDocument>
-                        <ram:IssuerAssignedID>\(escaped(invoice.reference))</ram:IssuerAssignedID>
+                        <ram:IssuerAssignedID>\(escaped(reference))</ram:IssuerAssignedID>
                       </ram:BuyerOrderReferencedDocument>
                     </ram:ApplicableHeaderTradeAgreement>
                 """
@@ -532,6 +540,16 @@ enum FacturXWriter {
               </ram:SpecifiedTradePaymentTerms>
         """ } ?? ""
 
+        // BG-3 is not in the Minimum profile, which has no place for it; the
+        // page still carries it. Last in the settlement, after the
+        // summation, because that is where CII's sequence puts it.
+        let preceding = reference.isEmpty || !corrects || details.profile == .minimum ? "" : """
+              <ram:InvoiceReferencedDocument>
+                <ram:IssuerAssignedID>\(escaped(reference))</ram:IssuerAssignedID>
+              </ram:InvoiceReferencedDocument>
+
+        """
+
         return """
         <?xml version="1.0" encoding="UTF-8"?>
         <rsm:CrossIndustryInvoice
@@ -564,6 +582,7 @@ enum FacturXWriter {
                 <ram:GrandTotalAmount>\(amount(details.totals.gross, in: currency))</ram:GrandTotalAmount>
                 <ram:DuePayableAmount>\(amount(details.totals.due, in: currency))</ram:DuePayableAmount>
               </ram:SpecifiedTradeSettlementHeaderMonetarySummation>
+        \(preceding)\
             </ram:ApplicableHeaderTradeSettlement>
           </rsm:SupplyChainTradeTransaction>
         </rsm:CrossIndustryInvoice>
